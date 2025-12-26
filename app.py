@@ -181,7 +181,7 @@ def scrape_website(target_url):
 def generate_campaign(product_name, images, key):
     genai.configure(api_key=key)
     # Using the standard stable model name
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-flash-latest')
 
     payload = [f"Analyze this fashion product: {product_name}"]
     payload.extend(images)  # Add the actual PIL images
