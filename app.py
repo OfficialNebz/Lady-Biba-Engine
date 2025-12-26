@@ -105,33 +105,43 @@ def scrape_website(target_url):
 
         title = soup.find('h1').text.strip() if soup.find('h1') else "Lady Biba Piece"
 
-        # --- SMART TEXT SCRAPER (FIXED) ---
+        # --- FIXED SCRAPER LOGIC ---
         desc_text = ""
-        candidates = []
 
-        # 1. Gather all potential description blocks
-        # Lady Biba uses 'product__description', 'rte', or 'description'
-        for class_name in ['product__description', 'rte', 'product-description', 'description']:
-            found = soup.find_all('div', class_=class_name)
-            for item in found:
-                text = item.get_text(separator="\n", strip=True)
-                if len(text) > 50:  # Ignore tiny texts like "Taxes included"
-                    candidates.append(text)
+        # 1. Target the specific class you showed me in Screenshot 264
+        # We look for 'product__description' specifically.
+        potential_blocks = soup.find_all('div', class_='product__description')
 
-        # 2. Fallback: Paragraphs
-        if not candidates:
+        # If that fails, try the generic Shopify 'rte' class
+        if not potential_blocks:
+            potential_blocks = soup.find_all('div', class_='rte')
+
+        # 2. Iterate through found blocks and pick the first VALID one
+        for block in potential_blocks:
+            text = block.get_text(separator="\n", strip=True)
+
+            # TRASH FILTER: If it looks like a policy, skip it.
+            if "DELIVERY" in text[:50] or "RETURNS" in text[:50] or "Shipping" in text[:50]:
+                continue
+
+            # If we passed the filter, this is likely our description.
+            # We take the first good one we find.
+            if len(text) > 20:
+                desc_text = text[:1500]
+                break
+
+                # 3. Last Resort Fallback (if the specific classes fail)
+        if not desc_text:
             ps = soup.find_all('p')
-            combined_p = "\n".join([p.text.strip() for p in ps[:10]])  # Check first 10 paragraphs
-            if len(combined_p) > 50:
-                candidates.append(combined_p)
+            # Collect first 5 paragraphs, but filter out the shipping junk
+            clean_ps = []
+            for p in ps[:10]:
+                t = p.text.strip()
+                if "DELIVERY" not in t and "RETURNS" not in t and len(t) > 10:
+                    clean_ps.append(t)
+            desc_text = "\n".join(clean_ps[:5])
 
-        # 3. Select the longest candidate (The Logic: Description is always the longest text block)
-        if candidates:
-            desc_text = max(candidates, key=len)[:2000]  # Pick the biggest one, cap at 2000 chars
-        else:
-            desc_text = "Luxury fashion piece. See images for details."
-
-        # ----------------------------------
+        # ---------------------------
 
         urls = [img.get('src') for img in soup.find_all('img') if img.get('src')]
         urls = ['https:' + u if u.startswith('//') else u for u in urls]
