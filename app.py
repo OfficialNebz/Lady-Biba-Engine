@@ -29,6 +29,8 @@ def inject_custom_css():
         div.stButton > button:hover { background-color: #D4AF37; color: #fff; }
         [data-testid="column"] { padding-right: 20px !important; }
         #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
+        /* Error Box Styling */
+        .stAlert { background-color: #330000; border: 1px solid #ff0000; color: #ffcccc; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -36,10 +38,9 @@ def inject_custom_css():
 inject_custom_css()
 
 # --- 3. AUTH & STATE ---
-# Initialize Session State Variables if they don't exist
 if "results" not in st.session_state: st.session_state.results = None
 if "p_name" not in st.session_state: st.session_state.p_name = ""
-if "imgs" not in st.session_state: st.session_state.imgs = []  # Store images here!
+if "imgs" not in st.session_state: st.session_state.imgs = []
 
 api_key = None
 notion_token = None
@@ -106,26 +107,58 @@ def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
     model = genai.GenerativeModel('gemini-flash-latest')
 
-    # We stripped your prompt down to the essentials to stop the "Corny" output.
-    # It now strictly forbids meta-commentary.
-    prompt = """
-    You are the Senior Copywriter for Lady Biba. 
-    Write 3 High-Conversion Instagram Captions + 1 Hybrid Strategy.
+    # THE FULL ARSENAL (20 Personas)
+    persona_matrix = """
+    1. The Tech-Bro VC (Tone: Lethal Precision | Hook: 'Tailor Story' Trauma)
+    2. The VI High-Court Lawyer (Tone: British Vogue Sophistication | Hook: 'Next Week Friday' Lies)
+    3. The Diaspora Investor (Tone: 'Old Money' Security | Hook: Invisible in Grey Suits)
+    4. The Eco-Conscious Gen Z (Tone: Aggressive Hype | Hook: Decision Fatigue)
+    5. The Oil & Gas Director (Tone: Understated Luxury | Hook: Time-Wealth Depletion)
+    6. The Balogun Market 'Oga' (Tone: Lagos 'No-Nonsense' | Hook: Fabric Fading Shame)
+    7. The Wedding Guest Pro (Tone: Kinetic Energy | Hook: Heat/Humidity Armor)
+    8. The Fintech Founder (Tone: Afro-Futuristic | Hook: Poor Finishing Scars)
+    9. The High-Society Matriarch (Tone: Maternal Authority | Hook: Economic Friction)
+    10. The Creative Director (Tone: Intellectual Dominance | Hook: 'Fast-Fashion' Fragility)
+    11. The Side-Hustle Queen (Tone: Relatable Hustle | Hook: Office TGIF-to-Party Crisis)
+    12. The Real Estate Mogul (Tone: Unapologetic Power | Hook: Imposter Syndrome)
+    13. The Corporate Librarian (Tone: Quiet Confidence | Hook: The 9AM Boardroom Fear)
+    14. The Instagram Influencer (Tone: Viral/Trend-Focused | Hook: 'Sold Out' Anxiety)
+    15. The Medical Consultant (Tone: Clinical/Structured | Hook: 24-Hour Style Durability)
+    16. The Church 'Sister' Elite (Tone: Pious/Premium | Hook: Modesty vs Style Battle)
+    17. The Media Personality (Tone: Electric/Charismatic | Hook: Narrative Inconsistency)
+    18. The Event Planner (Tone: Chaos-Control | Hook: Opportunity Cost of Waiting)
+    19. The UN/NGO Official (Tone: Diplomatic/Polished | Hook: Cultural Identity Gap)
+    20. The Retail Investor (Tone: Analytical/Speculative | Hook: ROI on Self-Presentation)
+    """
+
+    prompt = f"""
+    You are the Senior Creative Director for Lady Biba.
+
+    STEP 1: ANALYZE THE PRODUCT
+    Look at the product name: '{product_name}' and description: '{description}'.
+    Is it office wear? A party dress? A power suit?
+
+    STEP 2: SELECT THE TARGETS
+    From the MASTER LIST below, select the TOP 3 personas that would actually buy this specific item. 
+    (e.g., Do not sell a mini-skirt to 'The Church Sister'. Do not sell a ballgown to 'The Corporate Librarian'.)
+
+    MASTER LIST:
+    {persona_matrix}
+
+    STEP 3: EXECUTE
+    Write 3 High-Conversion Captions (one for each selected persona) + 1 Hybrid Strategy.
 
     CRITICAL RULES:
-    1. DO NOT explain the tone (e.g., never say "We combined X with Y"). JUST WRITE THE CAPTION.
-    2. Speak directly to the customer's pain: "Next Week Friday" lies, Tailor disappointment, Looking cheap in a boardroom.
-    3. Use these Personas:
-       - The VI High Court Lawyer (Authority, Precision)
-       - The Oil & Gas Director (Understated Wealth, Time-Efficiency)
-       - The Wedding Guest (Breathable fabric, Owambe dominance)
+    1. USE THE SPECIFIC TONE & HOOK defined in the list for that persona.
+    2. REFERENCE LOCAL MARKERS (e.g., Eko Hotel, 3rd Mainland, Alara, Wheatbaker) relevant to that persona.
+    3. NO FLUFF. Go straight for the kill (The pain point).
 
     Output JSON ONLY:
     [
-        {"persona": "The VI Lawyer", "post": "Caption content..."},
-        {"persona": "The Oil Director", "post": "Caption content..."},
-        {"persona": "The Wedding Guest", "post": "Caption content..."},
-        {"persona": "Hybrid Strategy", "post": "Caption content..."}
+        {{"persona": "Selected Persona Name 1", "post": "Caption content..."}},
+        {{"persona": "Selected Persona Name 2", "post": "Caption content..."}},
+        {{"persona": "Selected Persona Name 3", "post": "Caption content..."}},
+        {{"persona": "Hybrid Strategy", "post": "Caption content..."}}
     ]
     """
 
@@ -141,16 +174,37 @@ def generate_campaign(product_name, description, images, key):
 
 
 def save_to_notion(p_name, post, persona, token, db_id):
-    headers = {"Authorization": "Bearer " + token, "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+    """
+    Saves to Notion and RETURNS the status.
+    NO MORE LYING.
+    """
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+    }
+
+    # Payload
     data = {
         "parent": {"database_id": db_id},
         "properties": {
+            # CHECK YOUR DATABASE COLUMNS MATCH THESE NAMES EXACTLY
             "Product Name": {"title": [{"text": {"content": p_name}}]},
             "Persona": {"rich_text": [{"text": {"content": persona}}]},
             "Generated Post": {"rich_text": [{"text": {"content": post[:2000]}}]}
         }
     }
-    requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(data))
+
+    try:
+        response = requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(data))
+
+        # DEBUGGING: If it fails, return the error message
+        if response.status_code != 200:
+            return False, f"Error {response.status_code}: {response.text}"
+        return True, "Success"
+
+    except Exception as e:
+        return False, str(e)
 
 
 # --- 5. UI FLOW ---
@@ -162,7 +216,7 @@ with col1:
 with col2:
     run_btn = st.button("GENERATE ASSETS")
 
-# --- LOGIC: EXECUTE ONLY ON CLICK ---
+# --- LOGIC ---
 if run_btn and url_input:
     clean_url = url_input.split('?')[0]
     if not api_key:
@@ -171,19 +225,18 @@ if run_btn and url_input:
         with st.spinner("Analyzing..."):
             p_name, p_desc, valid_imgs = scrape_website(clean_url)
             if p_name and valid_imgs:
-                # SAVE TO SESSION STATE (This fixes the vanishing images)
                 st.session_state.p_name = p_name
                 st.session_state.imgs = valid_imgs
                 st.session_state.results = generate_campaign(p_name, p_desc, valid_imgs, api_key)
             else:
                 st.error("Scraping Failed.")
 
-# --- DISPLAY: ALWAYS RUNS IF DATA EXISTS ---
+# --- DISPLAY ---
 if st.session_state.p_name and st.session_state.imgs:
     st.divider()
     st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
 
-    # 1. SHOW IMAGES (Outside the button logic, so they stay)
+    # 1. IMAGES
     cols = st.columns(len(st.session_state.imgs), gap="large")
     for i, col in enumerate(cols):
         with col:
@@ -191,13 +244,38 @@ if st.session_state.p_name and st.session_state.imgs:
 
     st.divider()
 
-    # 2. SHOW RESULTS (Individual Controls)
+    # 2. GLOBAL EXPORT BUTTON (The "Save All" you wanted)
+    if st.button("💾 EXPORT ALL TO NOTION", type="primary"):
+        success_count = 0
+        error_log = []
+
+        progress_bar = st.progress(0)
+        for i, item in enumerate(st.session_state.results):
+            # Using the value from the dictionary, assuming no edits for "Bulk Save"
+            # OR you can loop through the keys if you want saved edits.
+            # For simplicity, we save the generated raw text here.
+            status, msg = save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token,
+                                         notion_db_id)
+            if status:
+                success_count += 1
+            else:
+                error_log.append(f"{item['persona']}: {msg}")
+            progress_bar.progress((i + 1) / len(st.session_state.results))
+
+        if success_count == len(st.session_state.results):
+            st.success("✅ All assets exported successfully!")
+        else:
+            st.error(f"⚠️ Failed to export {len(error_log)} items.")
+            for err in error_log:
+                st.code(err, language="json")
+
+    st.markdown("---")
+
+    # 3. INDIVIDUAL CARDS
     if st.session_state.results:
         for i, item in enumerate(st.session_state.results):
             st.markdown(f"### {item['persona']}")
 
-            # Text Area for Editing
-            # We use a unique key for each text area so it remembers edits
             edited_text = st.text_area(
                 "Caption",
                 value=item['post'],
@@ -206,9 +284,12 @@ if st.session_state.p_name and st.session_state.imgs:
                 label_visibility="collapsed"
             )
 
-            # INDIVIDUAL EXPORT BUTTON (This fixes your "Loss of Control")
-            if st.button(f"💾 EXPORT '{item['persona']}' TO NOTION", key=f"save_{i}"):
-                save_to_notion(st.session_state.p_name, edited_text, item['persona'], notion_token, notion_db_id)
-                st.toast(f"✅ {item['persona']} Saved!")
+            if st.button(f"Export Only This", key=f"save_{i}"):
+                status, msg = save_to_notion(st.session_state.p_name, edited_text, item['persona'], notion_token,
+                                             notion_db_id)
+                if status:
+                    st.toast(f"✅ {item['persona']} Saved!")
+                else:
+                    st.error(f"❌ Failed: {msg}")  # SHOWS THE ACTUAL ERROR
 
             st.markdown("---")
