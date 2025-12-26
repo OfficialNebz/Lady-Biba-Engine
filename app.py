@@ -155,38 +155,53 @@ def scrape_website(target_url):
         r = requests.get(target_url, headers=headers)
         soup = BeautifulSoup(r.content, 'html.parser')
 
-        # Title Scrape
+        # 1. Title
         title_tag = soup.find('h1')
         title = title_tag.text.strip() if title_tag else "Unknown Product"
 
-        # Image Scrape
+        # 2. Text Description (The Ground Truth)
+        # Lady Biba uses specific classes, but we'll cast a wide net for paragraphs
+        description_text = ""
+        desc_div = soup.find('div', class_='product__description')  # Common Shopify class
+        if desc_div:
+            description_text = desc_div.get_text(strip=True)[:1000]  # Limit to 1000 chars
+        else:
+            # Fallback: Grab the first few paragraphs
+            paragraphs = soup.find_all('p')
+            description_text = " ".join([p.text.strip() for p in paragraphs[:5]])
+
+        # 3. Images (Existing Logic)
         possible_urls = []
         for img in soup.find_all('img'):
             src = img.get('src')
             if not src: continue
             if src.startswith('//'): src = 'https:' + src
-
-            # Preliminary string filter
             if 'logo' not in src.lower() and 'icon' not in src.lower():
                 possible_urls.append(src)
 
-        # Deep Filter (Download & Check Size)
         final_images = get_valid_images(possible_urls)
 
-        return title, final_images
+        return title, description_text, final_images  # Returning 3 things now
     except Exception as e:
-        return None, []
+        return None, None, []
 
 
-def generate_campaign(product_name, images, key):
+def generate_campaign(product_name, description, images, key):  # Added description arg
     genai.configure(api_key=key)
-    # Using the standard stable model name
     model = genai.GenerativeModel('gemini-flash-latest')
 
-    payload = [f"Analyze this fashion product: {product_name}"]
-    payload.extend(images)  # Add the actual PIL images
+    # Payload: Text Context + Images
+    payload = [f"Product: {product_name}\n\nOfficial Description (Use these facts): {description}"]
+    payload.extend(images)
 
-    prompt = f""" 
+    prompt = """
+    You are the Senior Creative Director for Lady Biba.
+    Tone: High-Fashion, Minimalist, Confident, Lagos-Elite.
+
+    Directives:
+    1. ACCURACY: Use the fabric/details from the Official Description. Do not hallucinate features.\n
+    2. CONTEXT: Frame the benefits for the Lagos context (Heat, Traffic, Boardrooms).\n
+    3. FORMAT: JSON ONLY.\n
     Act as a high-end luxury fashion brand Lagos copywriter. You are able to generate the perfect mix of tones e.g. [Tone 1, e.g., British Vogue Sophistication] and [Tone 2, e.g., Lagos 'No-Nonsense' Confidence] for an instagram post.\n
     You are able to identify core insecurities in the selected persona and your expertise enables you to carry out psychological triggers for High-Net-Worth Individuals (HNWIs).\n
     You are able to identify "Naija" Pain Points: The local frustration it solves, e.g., Tailor lies, fabric fading, or poor finishing\n
@@ -225,6 +240,8 @@ def generate_campaign(product_name, images, key):
         {{"persona": "Name of Persona 3", "post": "Content of post 3..."}},
         {{"persona": "Hybrid Strategy", "post": "Content of hybrid post..."}}
     ]
+
+
     """
     payload.append(prompt)
 
@@ -291,18 +308,42 @@ if run_btn and url_input:
             else:
                 st.error("Acquisition Failed. Link invalid or images too small.")
 
-# Results Display
+# Processing Block
+if run_btn and url_input:
+    # ... (existing auth checks) ...
+    with st.spinner("Acquiring Visual & Textual Data..."):
+        # Update to unpack 3 values
+        p_name, p_desc, valid_imgs = scrape_website(clean_url)
+
+        if p_name and valid_imgs:
+            st.session_state.p_name = p_name
+            # Store the results
+            st.session_state.results = generate_campaign(p_name, p_desc, valid_imgs, api_key)
+        # ... (error handling) ...
+
+# Results Display (Editable)
 if "results" in st.session_state and st.session_state.results:
     st.divider()
     st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
 
-    # Global Save
-    if st.button("EXPORT CAMPAIGN TO DATABASE"):
-        for item in st.session_state.results:
-            save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token, notion_db_id)
-        st.success("DATA EXPORTED.")
+    # We use a form so the user can edit EVERYTHING then save ALL
+    with st.form("campaign_form"):
+        updated_posts = []
 
-    # Individual Cards
-    for item in st.session_state.results:
-        with st.expander(f"{item['persona'].upper()}", expanded=True):
-            st.write(item['post'])
+        for i, item in enumerate(st.session_state.results):
+            st.markdown(f"### 🎯 {item['persona']}")
+            # Text Area allows editing
+            edited_text = st.text_area(
+                f"Edit Caption for {item['persona']}",
+                value=item['post'],
+                height=150,
+                key=f"post_{i}"
+            )
+            updated_posts.append({"persona": item['persona'], "post": edited_text})
+            st.markdown("---")
+
+        # The Big Save Button
+        if st.form_submit_button("💾 APPROVE & EXPORT TO DATABASE"):
+            for item in updated_posts:
+                save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token, notion_db_id)
+            st.success("✅ All edited posts exported to Notion!")
