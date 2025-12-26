@@ -21,7 +21,6 @@ st.set_page_config(
 # --- THE VELVET ROPE (SECURITY LAYER) ---
 def check_password():
     """Returns `True` if the user had the correct password."""
-
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
 
@@ -31,41 +30,35 @@ def check_password():
     # --- CSS FOR THE LOGIN SCREEN (STATIC LUXURY) ---
     st.markdown("""
         <style>
-        /* 1. IMPORT FONTS FIRST */
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
 
-        /* 2. HIDE SIDEBAR & DEFAULT ELEMENTS */
         [data-testid="stSidebar"] { display: none; }
         header { visibility: hidden; }
         footer { visibility: hidden; }
 
-        /* 3. THE BACKGROUND IMAGE */
         .stApp {
             background-image: url("https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2071&auto=format&fit=crop"); 
             background-size: cover;
             background-position: center;
         }
 
-        /* 4. THE BLUR OVERLAY */
         .stApp::before {
             content: "";
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7); /* Darker tint for contrast */
-            backdrop-filter: blur(5px); /* Static blur, no animation */
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
             z-index: -1;
         }
 
-        /* 5. FADE IN ANIMATION (PURE OPACITY) */
         @keyframes subtleFade {
             0% { opacity: 0; }
             100% { opacity: 1; }
         }
 
-        /* 6. THE LUXURY LOGIN BOX CONTAINER */
         .login-container {
-            animation: subtleFade 2s ease-out forwards; /* Slow fade */
-            background-color: rgba(5, 5, 5, 0.95); /* Almost solid black */
+            animation: subtleFade 2s ease-out forwards;
+            background-color: rgba(5, 5, 5, 0.95);
             border: 1px solid #D4AF37;
             padding: 60px;
             text-align: center;
@@ -76,17 +69,14 @@ def check_password():
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
-        /* 7. INPUT & BUTTON STYLING */
         div[data-baseweb="input"] > div {
             background-color: #111 !important;
             border: 1px solid #333 !important;
             color: #D4AF37 !important;
             font-family: 'Montserrat', sans-serif !important;
-            letter-spacing: 2px;
             text-align: center;
         }
 
-        /* THE BUTTON YOU WANTED */
         div.stButton > button {
             width: 100%;
             border: 1px solid #D4AF37 !important;
@@ -95,27 +85,23 @@ def check_password():
             font-family: 'Montserrat', sans-serif;
             font-weight: 600;
             letter-spacing: 2px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth easing */
+            transition: all 0.3s ease;
             margin-top: 25px;
             padding: 15px 0;
         }
 
-        /* HOVER EFFECT: SCALE & GLOW */
         div.stButton > button:hover {
             background-color: #D4AF37 !important;
             color: #000 !important;
-            transform: scale(1.02); /* Subtle growth */
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); /* Gold Glow */
-            border-color: #D4AF37 !important;
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
         }
 
-        /* TYPE */
         h1 { font-family: 'Cormorant Garamond', serif !important; color: #D4AF37 !important; letter-spacing: 1px; }
         p { font-family: 'Montserrat', sans-serif !important; color: #888; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
         </style>
         """, unsafe_allow_html=True)
 
-    # --- THE LOGIN UI ---
     with st.container():
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
         st.markdown("<h1>ATELIER ACCESS</h1>", unsafe_allow_html=True)
@@ -126,11 +112,10 @@ def check_password():
             password = st.text_input("ACCESS KEY", type="password", label_visibility="collapsed",
                                      placeholder="ENTER KEY")
             submit = st.form_submit_button("UNLOCK SYSTEM")
-
         st.markdown('</div>', unsafe_allow_html=True)
 
     if submit:
-        if password == "neb123":  # <--- CHANGE THIS PASSWORD
+        if password == "neb123":  # <--- YOUR PASSWORD
             st.session_state.authenticated = True
             st.toast("✨ ACCESS GRANTED")
             time.sleep(1)
@@ -142,40 +127,34 @@ def check_password():
     return False
 
 
-# --- 2. THE GATEKEEPER ---
 if not check_password():
     st.stop()
 
 # =========================================================
-# 🎬 THE MAIN APP (PURE FADE IN)
+# 🎬 THE MAIN APP (STEALTH FADE IN)
 # =========================================================
 
 st.markdown("""
     <style>
-    /* 1. KEYFRAMES FOR MAIN APP FADE-IN (NO SLIDING) */
     @keyframes deepFade {
         0% { opacity: 0; }
         100% { opacity: 1; }
     }
 
-    /* 2. APPLY ANIMATION */
     .block-container {
         animation: deepFade 1.5s ease-out forwards;
     }
 
-    /* 3. CLEAN BACKGROUND (Void Black) */
     .stApp {
         background-image: none !important;
         background-color: #050505 !important;
     }
 
-    /* 4. TYPOGRAPHY ENFORCEMENT */
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
 
     h1, h2, h3 { font-family: 'Cormorant Garamond', serif !important; color: #F0F0F0 !important; font-weight: 400; }
     p, div, label, textarea { font-family: 'Montserrat', sans-serif !important; font-weight: 300; }
 
-    /* 5. MAIN APP INPUTS */
     .stTextInput > div > div > input { 
         background-color: #0a0a0a; 
         color: #fff; 
@@ -183,7 +162,6 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif;
     }
 
-    /* 6. MAIN APP BUTTONS */
     div.stButton > button { 
         background-color: #F0F0F0; 
         color: #000; 
@@ -191,16 +169,15 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif;
         font-weight: 600; 
         text-transform: uppercase;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: transform 0.2s ease;
     }
     div.stButton > button:hover { 
         background-color: #D4AF37; 
         color: #fff; 
-        transform: scale(1.02); /* The same scaling effect */
+        transform: scale(1.02);
         box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
     }
 
-    /* AUTH BADGE */
     .auth-badge {
         background-color: #D4AF37; color: #000; padding: 10px; text-align: center;
         font-family: 'Montserrat', sans-serif;
@@ -210,7 +187,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. MAIN APP LOGIC STARTS HERE ---
+# --- 3. MAIN APP LOGIC ---
 if "results" not in st.session_state: st.session_state.results = None
 if "p_name" not in st.session_state: st.session_state.p_name = ""
 if "imgs" not in st.session_state: st.session_state.imgs = []
@@ -239,7 +216,6 @@ with st.sidebar:
             st.rerun()
 
 
-# --- HELPER FUNCTIONS (Scraper & AI) ---
 def get_valid_images(url_list):
     valid_images = []
     seen = set()
@@ -286,8 +262,7 @@ def scrape_website(target_url):
                 if len(t) > 3: clean_ps.append(t)
             desc_text = "\n".join(clean_ps[:8])
 
-        if not desc_text:
-            desc_text = "[NO TEXT DESCRIPTION. DETECT FABRIC, CUT, AND VIBE FROM IMAGES ONLY.]"
+        if not desc_text: desc_text = "[NO TEXT DESCRIPTION. DETECT FABRIC, CUT, AND VIBE FROM IMAGES ONLY.]"
 
         urls = [img.get('src') for img in soup.find_all('img') if img.get('src')]
         urls = ['https:' + u if u.startswith('//') else u for u in urls]
@@ -368,7 +343,6 @@ def save_to_notion(p_name, post, persona, token, db_id):
         return False, str(e)
 
 
-# --- 4. UI FLOW ---
 st.title("LADY BIBA / INTELLIGENCE")
 
 col1, col2 = st.columns([4, 1])
@@ -403,8 +377,7 @@ if st.session_state.results:
     st.divider()
     st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
 
-    with st.expander("👁️ View Raw Scraped Data (Verify AI Inputs)"):
-        st.caption("Exact text/images detected:")
+    with st.expander("👁️ View Raw Scraped Data"):
         st.markdown(f"**Product Name:** {st.session_state.p_name}")
         st.code(st.session_state.p_desc)
 
@@ -419,19 +392,27 @@ if st.session_state.results:
         success = 0
         prog = st.progress(0)
         for i, item in enumerate(st.session_state.results):
-            s, m = save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token, notion_db_id)
+            # --- CRASH GUARD 1: SAFE ACCESS ---
+            p_val = item.get('persona', item.get('Persona', 'Unknown Persona'))
+            post_val = item.get('post', item.get('Post', item.get('caption', '')))
+
+            s, m = save_to_notion(st.session_state.p_name, post_val, p_val, notion_token, notion_db_id)
             if s:
                 success += 1
             else:
-                st.error(f"Failed {item['persona']}: {m}")
+                st.error(f"Failed {p_val}: {m}")
             prog.progress((i + 1) / len(st.session_state.results))
         if success == len(st.session_state.results): st.success("Database Updated.")
 
     for i, item in enumerate(st.session_state.results):
-        st.markdown(f"### {item['persona']}")
-        edited = st.text_area("Caption", value=item['post'], height=150, key=f"edit_{i}", label_visibility="collapsed")
+        # --- CRASH GUARD 2: SAFE ACCESS ---
+        p_val = item.get('persona', item.get('Persona', 'Unknown Persona'))
+        post_val = item.get('post', item.get('Post', item.get('caption', '')))
+
+        st.markdown(f"### {p_val}")
+        edited = st.text_area("Caption", value=post_val, height=150, key=f"edit_{i}", label_visibility="collapsed")
         if st.button(f"Export Only This", key=f"save_{i}"):
-            s, m = save_to_notion(st.session_state.p_name, edited, item['persona'], notion_token, notion_db_id)
+            s, m = save_to_notion(st.session_state.p_name, edited, p_val, notion_token, notion_db_id)
             if s:
                 st.toast("Saved!")
             else:
