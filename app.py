@@ -137,7 +137,7 @@ def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
 
     # REVERTING TO STABLE MODEL NAME
-    model = genai.GenerativeModel('gemini-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     persona_matrix = """
     1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
@@ -200,3 +200,86 @@ def generate_campaign(product_name, description, images, key):
             txt = txt.split("```")[1].split("```")[0]
         return json.loads(txt.strip())
     except Exception as e:
+        return [{"persona": "Error", "post": f"AI Error: {str(e)}"}]
+
+
+def save_to_notion(p_name, post, persona, token, db_id):
+    headers = {"Authorization": "Bearer " + token, "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+    data = {
+        "parent": {"database_id": db_id},
+        "properties": {
+            "Product Name": {"title": [{"text": {"content": p_name}}]},
+            "Persona": {"rich_text": [{"text": {"content": persona}}]},
+            "Generated Post": {"rich_text": [{"text": {"content": post[:2000]}}]}
+        }
+    }
+    try:
+        response = requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(data))
+        if response.status_code != 200: return False, response.text
+        return True, "Success"
+    except Exception as e:
+        return False, str(e)
+
+
+# --- 5. UI FLOW ---
+st.title("LADY BIBA / INTELLIGENCE")
+
+col1, col2 = st.columns([4, 1])
+with col1:
+    url_input = st.text_input("Product URL", placeholder="Paste Link...", label_visibility="collapsed")
+with col2:
+    run_btn = st.button("GENERATE ASSETS")
+
+if run_btn and url_input:
+    st.session_state.results = None
+    st.session_state.p_name = ""
+    st.session_state.imgs = []
+
+    clean_url = url_input.split('?')[0]
+
+    if not api_key:
+        st.error("MISSING API KEY.")
+    else:
+        with st.spinner("Scanning Fabric & Context..."):
+            p_name, p_desc, valid_imgs = scrape_website(clean_url)
+            if p_name:
+                st.session_state.p_name = p_name
+                st.session_state.imgs = valid_imgs
+                st.session_state.results = generate_campaign(p_name, p_desc, valid_imgs, api_key)
+            else:
+                st.error("Scraping Failed.")
+
+if st.session_state.results:
+    st.divider()
+    st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
+
+    if st.session_state.imgs:
+        cols = st.columns(len(st.session_state.imgs), gap="large")
+        for i, col in enumerate(cols):
+            with col: st.image(st.session_state.imgs[i], use_container_width=True)
+
+    st.divider()
+
+    if st.button("💾 EXPORT ALL TO NOTION", type="primary"):
+        success = 0
+        prog = st.progress(0)
+        for i, item in enumerate(st.session_state.results):
+            s, m = save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token, notion_db_id)
+            if s:
+                success += 1
+            else:
+                st.error(f"Failed {item['persona']}: {m}")
+            prog.progress((i + 1) / len(st.session_state.results))
+        if success == len(st.session_state.results): st.success("Database Updated.")
+
+    for i, item in enumerate(st.session_state.results):
+        st.markdown(f"### {item['persona']}")
+        edited = st.text_area("Caption", value=item['post'], height=150, key=f"edit_{i}", label_visibility="collapsed")
+
+        if st.button(f"Export Only This", key=f"save_{i}"):
+            s, m = save_to_notion(st.session_state.p_name, edited, item['persona'], notion_token, notion_db_id)
+            if s:
+                st.toast("Saved!")
+            else:
+                st.error(f"Error: {m}")
+        st.markdown("---")
