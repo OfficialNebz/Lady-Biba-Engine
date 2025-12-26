@@ -253,7 +253,7 @@ with st.container():
         target_url = st.text_input("Product URL", placeholder="Paste the Lady Biba link here...",
                                    label_visibility="collapsed")
     with col2:
-        generate_btn = st.button("Create Description...")
+        generate_btn = st.button("Create")
 
 # URL Cleaner
 if target_url:
