@@ -10,7 +10,6 @@ from io import BytesIO
 # --- PAGE CONFIG ---
 st.set_page_config(
     page_title="Lady Biba AI Content Engine",
-    page_icon="👗",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -108,7 +107,7 @@ notion_token = None
 notion_db_id = None
 
 with st.sidebar:
-    st.title("⚙️ Engine Room")
+    st.title("Credentials Room")
 
     # Check if Secrets exist in Streamlit Cloud
     if "GEMINI_API_KEY" in st.secrets and "NOTION_TOKEN" in st.secrets:
@@ -175,23 +174,43 @@ def generate_campaign(product_name, image_urls, key):
             continue
 
     prompt = """
-    You are the Head of Marketing for Lady Biba, a premium Nigerian fashion brand.
-    Your Voice: Ruthless Elegance. Sophisticated, "Rich Aunty" Vibes, deeply rooted in Lagos culture but appealing to global standards.
-
-    Task: Create 3 distinct Instagram captions and 1 Hybrid Master Strategy.
-
-    The Personas:
-    1. The VI High Court Lawyer (Needs structure, power, 'Next Week Friday' pain points)
-    2. The Oil & Gas Director (Needs 'Time-Wealth', understated luxury, Lekki-Ikoyi Bridge context)
-    3. The Wedding Guest Pro (Needs breathable fabrics for Owambes, standing out without outshining the bride)
-
-    Format:
-    Return ONLY valid JSON.
+Act as a high-end luxury fashion brand Lagos copywriter. You are able to generate the perfect mix of tones e.g. [Tone 1, e.g., British Vogue Sophistication] and [Tone 2, e.g., Lagos 'No-Nonsense' Confidence] for an instagram post.\n
+    You are able to identify core insecurities in the selected persona and your expertise enables you to carry out psychological triggers for High-Net-Worth Individuals (HNWIs).\n
+    You are able to identify "Naija" Pain Points: The local frustration it solves, e.g., Tailor lies, fabric fading, or poor finishing\n
+    You must identify the time-Wealth Factor: How much time/stress they save by buying ready-to-wear. Use AIDA model (Attention, Interest, Desire, Action). Apply the specific Tone and Pain Points relevant to THAT persona. Focus CTA on scarcity and time-wealth.\n
+    Do not use generic AI words.\n
+    Write ONE "Hybrid Master Post" that blends all 3 appeals into a universal narrative.
+    Reference at least two Mandatory Local Markers: Eko Atlantic, Yellow Buses, Danfo, Owambe, Victoria Island, Banana Island].\n
+    Emoji Strategy: Max 3 to 5 emojis. Keep it premium, not cluttered\n
+    The Task: Draft an Instagram Sales Post using the AIDA: Attention, Interest, Desire, Action model. Analyze the images. Select the Top 3 Personas.\n
+    For each persona you must incorporate this tone, Lagos markers and Hooks/Pain before adding another Tone, Lagos Marker or Hooks/Pains of your choice of your choice\n
+    1. The VI High Court Lawyer\nTone:British Vogue Sophistication\nLagos Marker: RSVP Ikoyi Ambience\nHooks/Pain Points (The Trigger): "Next Week Friday" Lies\n
+    2. The Diaspora Investor\nTone: "Old Money" Security\nLagos Markers: Banana Island Gatehouse\nHooks/Pain Points (The Trigger): Invisible in Gray Suits\n
+    3. The Eco-Conscious Gen Z\nTone: Aggressive Hype\nLagos Markers: The 3rd Mainland Grid\nHooks/Pain Points (The Trigger): Decision Fatigue\n
+    4. The The Oil & Gas Director\nTone: Understated Luxury\nLagos Markers: Lekki-Ikoyi Link Bridge\nHooks/Pain Points (The Trigger): Time-Wealth Depletion\n
+    5. The Balogun Market 'Oga'\nTone: Lagos 'No-Nonsense'\nLagos Markers: Danfo Bistro Vibes\nHooks/Pain Points (The Trigger): Fabric Fading Shame\n
+    6. The Wedding Guest (Pro)\nTone: Kinetic Energy\nLagos Markers: Eko Hotel Grand Ballroom\nHooks/Pain Points (The Trigger): Heat/Humidity Armor\n
+    7. The FinTech Founder\nTone: Afro-Futuristic\nLagos Markers: Yaba "Silicon" Tech Hub\nHooks/Pain Points (The Trigger): Poor Finishing Scars\n
+    8. The High-Society Matriarch\nTone: Maternal Authority\nLagos Markers: Sunday Brunch at Wheatbaker\nHooks/Pain Points (The Trigger): Economic Friction\n
+    9. The Creative Director\nTone: Intellectual Dominance\nLagos Markers: Alara Lagos Aesthetic\nHooks/Pain Points (The Trigger): 'Fast Fashion' Fragility\n
+    10. The Side-Hustle Queen\nTone: Relatable Hustle\nLagos Markers: Ikeja Along Traffic\nHooks/Pain Points (The Trigger): Office TGIF-to-Party Crisis\n
+    11. The Real-Estate Mogul\nTone: Unapologetic Power\nLagos Markers: Landmark Beach Lounge\nHooks/Pain Points (The Trigger): Impostor Syndrome\n
+    12. The Corporate Librarian\nTone: Quiet Confidence\nLagos Markers: Victoria Island Skyline\nHooks/Pain Points (The Trigger): The 9AM Boardroom Fear\n
+    13. The Instagram Influencer\nTone: Viral-Trend-Focused\nLagos Markers: Shiro Lagos Lighting\nHooks/Pain Points (The Trigger): "Sold-Out" Anxiety\n
+    14. The Medical Consultant\nTone: Clinical and Structured\nLagos Markers: LUTH/Private Clinic VI\nHooks/Pain Points (The Trigger): 24-Hour Style Durability\n
+    15. The Church 'Sister' (Elite)\nTone: Pious/Premium\nLagos Markers: House on the Rock Energy\nHooks/Pain Points (The Trigger): Modesty vs Style Battle\n
+    16. The Media Personality\nTone: Electric/Charismatic\nLagos Markers: SilverBird/Terra Kulture\nHooks/Pain Points (The Trigger): Narrative Inconsistency\n
+    17. The Event Planner\nTone: Chaos-Control\nLagos Markers: Oriental Hotel Tunnels\nHooks/Pain Points (The Trigger): Opportunity Cost of Waiting\n
+    18. The UN/NGO Official\nTone: Diplomatic/Polished\nLagos Markers: Abuja-Lagos Air Peace Flight\nHooks/Pain Points (The Trigger): Cultural Identity Gap\n
+    19. The Retail Investor\nTone: Analytical/Speculative\nLagos Markers: NSE Marina View\nHooks/Pain Points (The Trigger): ROI on Self-Presentation\n
+    OUTPUT FORMAT:
+    You must return a valid JSON object. Do not use markdown formatting or markdown blocks. 
+    Structure:
     [
-        {"persona": "The VI High Court Lawyer", "post": "Caption text..."},
-        {"persona": "The Oil & Gas Director", "post": "Caption text..."},
-        {"persona": "The Wedding Guest Pro", "post": "Caption text..."},
-        {"persona": "Hybrid Master Strategy", "post": "Caption text..."}
+        {{"persona": "Name of Persona 1", "post": "Content of post 1..."}},
+        {{"persona": "Name of Persona 2", "post": "Content of post 2..."}},
+        {{"persona": "Name of Persona 3", "post": "Content of post 3..."}},
+        {{"persona": "Hybrid Strategy", "post": "Content of hybrid post..."}}
     ]
     """
     content_payload.append(prompt)
@@ -234,7 +253,7 @@ with st.container():
         target_url = st.text_input("Product URL", placeholder="Paste the Lady Biba link here...",
                                    label_visibility="collapsed")
     with col2:
-        generate_btn = st.button("🚀 IGNITE ENGINE")
+        generate_btn = st.button("Create Description...")
 
 # URL Cleaner
 if target_url:
