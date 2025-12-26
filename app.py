@@ -137,7 +137,7 @@ def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
 
     # REVERTING TO STABLE MODEL NAME
-    model = genai.GenerativeModel('gemini-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     persona_matrix = """
     1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
