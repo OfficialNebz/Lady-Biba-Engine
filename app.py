@@ -7,7 +7,7 @@ import google.generativeai as genai
 from PIL import Image
 from io import BytesIO
 
-# --- PAGE CONFIG ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(
     page_title="Lady Biba Client",
     page_icon="✨",
@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 
-# --- LUXURY CSS OVERRIDE ---
+# --- 2. LUXURY VISUALS (CSS) ---
 def inject_custom_css():
     st.markdown("""
         <style>
@@ -24,38 +24,35 @@ def inject_custom_css():
 
         /* RESET & DARK MODE */
         .stApp {
-            background-color: #000000;
+            background-color: #050505;
             color: #E0E0E0;
         }
 
-        /* HEADINGS - SERIF & ELEGANT */
+        /* TYPOGRAPHY */
         h1, h2, h3 {
             font-family: 'Cormorant Garamond', serif !important;
-            font-weight: 300 !important;
+            font-weight: 400 !important;
             letter-spacing: 0.05rem;
             color: #F0F0F0 !important;
         }
-
-        /* BODY TEXT - SANS SERIF */
-        p, div, label, input, button {
+        p, div, label, input, button, textarea {
             font-family: 'Montserrat', sans-serif !important;
             font-weight: 300;
         }
 
-        /* INPUTS - REMOVE BORDERS */
+        /* INPUTS - SHARP & MINIMAL */
         .stTextInput > div > div > input {
-            background-color: #111;
+            background-color: #0a0a0a;
             color: #fff;
-            border: 1px solid #222;
-            border-radius: 0px; /* Sharp edges */
+            border: 1px solid #333;
+            border-radius: 0px;
             padding: 12px;
         }
         .stTextInput > div > div > input:focus {
-            border-color: #555;
-            box-shadow: none;
+            border-color: #D4AF37; /* Gold focus */
         }
 
-        /* BUTTONS - MINIMALIST */
+        /* BUTTONS - LUXURY INTERACTION */
         div.stButton > button {
             background-color: #F0F0F0;
             color: #000;
@@ -65,48 +62,51 @@ def inject_custom_css():
             text-transform: uppercase;
             letter-spacing: 2px;
             font-size: 12px;
+            font-weight: 600;
             transition: all 0.3s ease;
+            width: 100%;
         }
         div.stButton > button:hover {
-            background-color: #D4AF37; /* Gold on hover */
+            background-color: #D4AF37;
             color: #fff;
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
         }
 
-        /* HIDE UGLY STREAMLIT ELEMENTS */
+        /* IMAGE SPACING */
+        div[data-testid="column"] {
+            background: rgba(255,255,255,0.02);
+            padding: 10px;
+            border-radius: 4px; /* Subtle frame */
+        }
+        img {
+            border-radius: 2px;
+        }
+
+        /* HIDE JUNK */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
-
-        /* IMAGES */
-        img {
-            filter: brightness(0.9);
-            transition: filter 0.3s;
-        }
-        img:hover {
-            filter: brightness(1.1);
-        }
         </style>
     """, unsafe_allow_html=True)
 
 
 inject_custom_css()
 
-# --- AUTH LOGIC (SILENT & DEADLY) ---
-# Initialize
+# --- 3. AUTH SYSTEM ---
 api_key = None
 notion_token = None
 notion_db_id = None
 
-# Check Secrets
+# Auto-load from Secrets
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
     notion_token = st.secrets["NOTION_TOKEN"]
     notion_db_id = st.secrets["NOTION_DB_ID"]
 
-# Sidebar is for MANUAL OVERRIDE ONLY
+# Manual Override (Sidebar)
 with st.sidebar:
-    st.header("Settings")
+    st.header("Atelier Settings")
     if not api_key:
         api_key = st.text_input("API Key", type="password")
         notion_token = st.text_input("Notion Token", type="password")
@@ -118,38 +118,27 @@ with st.sidebar:
             st.rerun()
 
 
-# --- INTELLIGENCE FUNCTIONS ---
+# --- 4. ENGINE (SCRAPER & AI) ---
 def get_valid_images(url_list):
-    """
-    Downloads images and filters out logos/icons by PIXEL SIZE.
-    This kills the logo bug permanently.
-    """
+    """Filters images by size to kill logos."""
     valid_images = []
-
     for url in url_list:
         try:
-            # Quick fetch
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=3)
             img = Image.open(BytesIO(response.content))
-
-            # THE FILTER:
-            # 1. Must be larger than 300x300px (kills icons)
-            # 2. Must not be extremely wide/flat (kills banners)
             w, h = img.size
-            aspect = w / h
-
-            if w > 300 and h > 300 and 0.5 < aspect < 1.8:
+            # Filter: Must be bigger than 300px and not a wide banner
+            if w > 300 and h > 300 and 0.5 < (w / h) < 1.5:
                 valid_images.append(img)
-
-            if len(valid_images) >= 3:  # We only need 3 good shots
+            if len(valid_images) >= 3:
                 break
         except:
             continue
-
     return valid_images
 
 
 def scrape_website(target_url):
+    """Returns Title, Description, AND Images (3 items)"""
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
         r = requests.get(target_url, headers=headers)
@@ -159,18 +148,20 @@ def scrape_website(target_url):
         title_tag = soup.find('h1')
         title = title_tag.text.strip() if title_tag else "Unknown Product"
 
-        # 2. Text Description (The Ground Truth)
-        # Lady Biba uses specific classes, but we'll cast a wide net for paragraphs
-        description_text = ""
-        desc_div = soup.find('div', class_='product__description')  # Common Shopify class
-        if desc_div:
-            description_text = desc_div.get_text(strip=True)[:1000]  # Limit to 1000 chars
-        else:
-            # Fallback: Grab the first few paragraphs
-            paragraphs = soup.find_all('p')
-            description_text = " ".join([p.text.strip() for p in paragraphs[:5]])
+        # 2. Description (The Ground Truth)
+        desc_text = "Lady Biba Fashion Piece."
+        possible_descs = soup.find_all('div', class_='product-description')  # Common
+        if not possible_descs:
+            possible_descs = soup.find_all('div', class_='rte')  # Shopify standard
 
-        # 3. Images (Existing Logic)
+        if possible_descs:
+            desc_text = possible_descs[0].get_text(strip=True)[:800]
+        else:
+            # Fallback
+            ps = soup.find_all('p')
+            desc_text = " ".join([p.text.strip() for p in ps[:3]])
+
+        # 3. Images
         possible_urls = []
         for img in soup.find_all('img'):
             src = img.get('src')
@@ -181,27 +172,19 @@ def scrape_website(target_url):
 
         final_images = get_valid_images(possible_urls)
 
-        return title, description_text, final_images  # Returning 3 things now
+        return title, desc_text, final_images
     except Exception as e:
         return None, None, []
 
 
-def generate_campaign(product_name, description, images, key):  # Added description arg
+def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
-    # Payload: Text Context + Images
-    payload = [f"Product: {product_name}\n\nOfficial Description (Use these facts): {description}"]
+    payload = [f"Product: {product_name}\n\nSpecs: {description}"]
     payload.extend(images)
 
     prompt = """
-    You are the Senior Creative Director for Lady Biba.
-    Tone: High-Fashion, Minimalist, Confident, Lagos-Elite.
-
-    Directives:
-    1. ACCURACY: Use the fabric/details from the Official Description. Do not hallucinate features.\n
-    2. CONTEXT: Frame the benefits for the Lagos context (Heat, Traffic, Boardrooms).\n
-    3. FORMAT: JSON ONLY.\n
     Act as a high-end luxury fashion brand Lagos copywriter. You are able to generate the perfect mix of tones e.g. [Tone 1, e.g., British Vogue Sophistication] and [Tone 2, e.g., Lagos 'No-Nonsense' Confidence] for an instagram post.\n
     You are able to identify core insecurities in the selected persona and your expertise enables you to carry out psychological triggers for High-Net-Worth Individuals (HNWIs).\n
     You are able to identify "Naija" Pain Points: The local frustration it solves, e.g., Tailor lies, fabric fading, or poor finishing\n
@@ -240,8 +223,6 @@ def generate_campaign(product_name, description, images, key):  # Added descript
         {{"persona": "Name of Persona 3", "post": "Content of post 3..."}},
         {{"persona": "Hybrid Strategy", "post": "Content of hybrid post..."}}
     ]
-
-
     """
     payload.append(prompt)
 
@@ -250,8 +231,7 @@ def generate_campaign(product_name, description, images, key):  # Added descript
         clean = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean)
     except Exception as e:
-        st.error(f"Generation Error: {e}")
-        return []
+        return [{"persona": "Error", "post": f"AI Generation Failed: {e}"}]
 
 
 def save_to_notion(p_name, post, persona, token, db_id):
@@ -260,7 +240,7 @@ def save_to_notion(p_name, post, persona, token, db_id):
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
     }
-    body = {
+    data = {
         "parent": {"database_id": db_id},
         "properties": {
             "Product Name": {"title": [{"text": {"content": p_name}}]},
@@ -268,82 +248,65 @@ def save_to_notion(p_name, post, persona, token, db_id):
             "Generated Post": {"rich_text": [{"text": {"content": post[:2000]}}]}
         }
     }
-    requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(body))
+    requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(data))
 
 
-# --- MAIN INTERFACE ---
+# --- 5. MAIN INTERFACE ---
 st.title("LADY BIBA / INTELLIGENCE")
 
-# Clean input state
-if "target_url" not in st.session_state:
-    st.session_state.target_url = ""
+if "results" not in st.session_state:
+    st.session_state.results = None
+if "p_name" not in st.session_state:
+    st.session_state.p_name = ""
 
 # Input
 col1, col2 = st.columns([4, 1])
 with col1:
-    url_input = st.text_input("Product URL", placeholder="https://ladybiba.com/...", label_visibility="collapsed")
+    url_input = st.text_input("Product URL", placeholder="Paste Link...", label_visibility="collapsed")
 with col2:
     run_btn = st.button("GENERATE ASSETS")
 
-# Processing
 if run_btn and url_input:
-    # URL Cleaning
     clean_url = url_input.split('?')[0]
-
     if not api_key:
-        st.error("SYSTEM HALTED: Missing Credentials.")
+        st.error("MISSING API KEY.")
     else:
-        with st.spinner("Acquiring Visual Data..."):
-            p_name, valid_imgs = scrape_website(clean_url)
+        with st.spinner("Analyzing Texture & Context..."):
+            # UNPACKING 3 VALUES (Fixes the Crash)
+            p_name, p_desc, valid_imgs = scrape_website(clean_url)
 
             if p_name and valid_imgs:
                 st.session_state.p_name = p_name
-                st.session_state.imgs = valid_imgs
 
-                # Show Images (Clean Layout)
-                st.image(valid_imgs, width=200, caption=["Visual 1", "Visual 2", "Visual 3"][:len(valid_imgs)])
+                # IMAGE DISPLAY (Fixes the "Sandwich")
+                st.markdown("### Visual Analysis")
+                # Create columns equal to number of images with GAP
+                img_cols = st.columns(len(valid_imgs), gap="large")
+                for i, col in enumerate(img_cols):
+                    with col:
+                        # use_container_width makes it responsive
+                        st.image(valid_imgs[i], use_container_width=True)
 
-                with st.spinner("Drafting Copy..."):
-                    st.session_state.results = generate_campaign(p_name, valid_imgs, api_key)
+                        # Generate
+                st.session_state.results = generate_campaign(p_name, p_desc, valid_imgs, api_key)
             else:
-                st.error("Acquisition Failed. Link invalid or images too small.")
+                st.error("Scraping Failed. Check URL.")
 
-# Processing Block
-if run_btn and url_input:
-    # ... (existing auth checks) ...
-    with st.spinner("Acquiring Visual & Textual Data..."):
-        # Update to unpack 3 values
-        p_name, p_desc, valid_imgs = scrape_website(clean_url)
-
-        if p_name and valid_imgs:
-            st.session_state.p_name = p_name
-            # Store the results
-            st.session_state.results = generate_campaign(p_name, p_desc, valid_imgs, api_key)
-        # ... (error handling) ...
-
-# Results Display (Editable)
-if "results" in st.session_state and st.session_state.results:
+# EDITABLE RESULTS
+if st.session_state.results:
     st.divider()
     st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
 
-    # We use a form so the user can edit EVERYTHING then save ALL
-    with st.form("campaign_form"):
-        updated_posts = []
-
+    with st.form("edit_form"):
+        final_posts = []
         for i, item in enumerate(st.session_state.results):
-            st.markdown(f"### 🎯 {item['persona']}")
-            # Text Area allows editing
-            edited_text = st.text_area(
-                f"Edit Caption for {item['persona']}",
-                value=item['post'],
-                height=150,
-                key=f"post_{i}"
-            )
-            updated_posts.append({"persona": item['persona'], "post": edited_text})
+            st.markdown(f"**{item['persona']}**")
+            # Editable Text Area
+            val = st.text_area("Caption", value=item['post'], height=150, key=f"edit_{i}", label_visibility="collapsed")
+            final_posts.append({"persona": item['persona'], "post": val})
             st.markdown("---")
 
-        # The Big Save Button
-        if st.form_submit_button("💾 APPROVE & EXPORT TO DATABASE"):
-            for item in updated_posts:
+        if st.form_submit_button("💾 APPROVE & EXPORT ALL TO NOTION"):
+            for item in final_posts:
                 save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token, notion_db_id)
-            st.success("✅ All edited posts exported to Notion!")
+            st.success("✅ Database Updated.")
