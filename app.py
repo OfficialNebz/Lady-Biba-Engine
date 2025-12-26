@@ -184,7 +184,7 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-flash-latest')
 
     payload = [f"Product: {product_name}\n\nSpecs: {description}"]
     payload.extend(images)
