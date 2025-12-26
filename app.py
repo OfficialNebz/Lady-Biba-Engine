@@ -11,14 +11,13 @@ import time
 
 # --- 1. CONFIGURATION (MUST BE FIRST) ---
 st.set_page_config(
-    page_title="Lady Biba Client",
+    page_title="LADY BIBA / INTELLIGENCE",
     page_icon="✨",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 
-# --- THE VELVET ROPE (SECURITY LAYER) ---
 # --- THE VELVET ROPE (SECURITY LAYER) ---
 def check_password():
     """Returns `True` if the user had the correct password."""
@@ -29,7 +28,7 @@ def check_password():
     if st.session_state.authenticated:
         return True
 
-    # --- ADVANCED CSS ANIMATIONS ---
+    # --- CSS FOR THE LOGIN SCREEN (FADE IN + BLUR) ---
     st.markdown("""
         <style>
         /* 1. HIDE SIDEBAR & DEFAULT ELEMENTS */
@@ -37,67 +36,49 @@ def check_password():
         header { visibility: hidden; }
         footer { visibility: hidden; }
 
-        /* 2. THE BLURRY BACKGROUND */
+        /* 2. THE BACKGROUND IMAGE */
         .stApp {
             background-image: url("https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2071&auto=format&fit=crop"); 
             background-size: cover;
             background-position: center;
         }
 
-        /* The Overlay that blurs the image */
+        /* 3. THE BLUR OVERLAY */
         .stApp::before {
             content: "";
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.6); /* Dark tint */
-            backdrop-filter: blur(8px); /* REAL BLUR EFFECT */
+            backdrop-filter: blur(8px); /* REAL BLUR */
             z-index: -1;
         }
 
-        /* 3. ANIMATIONS DEFINITIONS */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* 4. ANIMATION: FADE IN THE LOGIN BOX */
+        @keyframes fadeInScale {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
         }
 
-        @keyframes shake {
-            0% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            50% { transform: translateX(5px); }
-            75% { transform: translateX(-5px); }
-            100% { transform: translateX(0); }
-        }
-
-        /* 4. THE LUXURY LOGIN BOX */
+        /* 5. THE LUXURY LOGIN BOX CONTAINER */
         .login-container {
-            animation: fadeIn 0.8s ease-out; /* Smooth Entry */
+            animation: fadeInScale 1.5s ease-out forwards; /* <--- THIS MAKES IT FADE IN */
             background-color: rgba(10, 10, 10, 0.9);
             border: 1px solid #D4AF37;
             padding: 50px;
             box-shadow: 0 0 40px rgba(212, 175, 55, 0.15);
             text-align: center;
-            margin-top: 15vh; /* Center vertically */
+            margin-top: 15vh;
             max-width: 500px;
             margin-left: auto;
             margin-right: auto;
         }
 
-        /* 5. INPUT FIELD STYLING */
+        /* 6. INPUT & BUTTON STYLING */
         div[data-baseweb="input"] > div {
             background-color: #050505 !important;
             border: 1px solid #333 !important;
             color: #D4AF37 !important;
-            transition: all 0.3s ease;
         }
-        div[data-baseweb="input"] > div:focus-within {
-            border-color: #D4AF37 !important;
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
-        }
-
-        /* 6. BUTTON STYLING */
         div.stButton > button {
             width: 100%;
             border: 1px solid #D4AF37 !important;
@@ -112,26 +93,20 @@ def check_password():
             background-color: #D4AF37 !important;
             color: #000 !important;
             box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
-            transform: scale(1.02);
         }
-
-        /* ERROR STATE (Class to add via Python if possible, or just toast) */
         </style>
         """, unsafe_allow_html=True)
 
-    # --- THE UI STRUCTURE ---
-    # We use a container to group the "Box" visual
+    # --- THE LOGIN UI ---
     with st.container():
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
-
         st.markdown(
-            "<h1 style='text-align: center; color: #D4AF37; font-family: Cormorant Garamond; font-size: 40px; margin-bottom: 10px;'>ATELIER</h1>",
+            "<h1 style='text-align: center; color: #D4AF37; font-family: Cormorant Garamond; font-size: 40px; margin-bottom: 10px;'>ATELIER ACCESS</h1>",
             unsafe_allow_html=True)
         st.markdown(
             "<p style='text-align: center; color: #888; font-size: 12px; letter-spacing: 1px; margin-bottom: 30px;'>AUTHORIZED PERSONNEL ONLY</p>",
             unsafe_allow_html=True)
 
-        # The Form prevents reloading until "Submit" is clicked
         with st.form("login_form"):
             password = st.text_input("ACCESS KEY", type="password", label_visibility="collapsed",
                                      placeholder="ENTER KEY")
@@ -139,61 +114,66 @@ def check_password():
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- LOGIC ---
     if submit:
-        if password == "neb123":
+        if password == "neb123":  # <--- CHANGE THIS PASSWORD
             st.session_state.authenticated = True
-            # Success Toast
-            st.toast("✨ ACCESS GRANTED. WELCOME.")
+            st.toast("✨ ACCESS GRANTED")
             time.sleep(1)
             st.rerun()
         else:
-            # Error Toast
-            st.toast("⚠️ ACCESS DENIED. INVALID CREDENTIALS.")
-            # We can't easily trigger CSS shake from Python without a rerun,
-            # but the toast provides the feedback you need.
+            st.toast("⚠️ ACCESS DENIED")
             time.sleep(1)
 
     return False
 
-# --- 2. THE BOUNCER CHECK (THIS WAS MISSING) ---
+
+# --- 2. THE GATEKEEPER ---
 if not check_password():
-    st.stop()  # <--- This stops the app from loading if password is wrong
+    st.stop()
 
+# =========================================================
+# 🎬 CINEMATIC ENTRY (MAIN APP FADES IN HERE)
+# =========================================================
 
-# --- 3. LUXURY VISUALS (The rest of your app starts here) ---
-def inject_custom_css():
-    # ... rest of your code ...
-    st.markdown("""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
+st.markdown("""
+    <style>
+    /* 1. KEYFRAMES FOR MAIN APP FADE-IN */
+    @keyframes cinematicFade {
+        0% { opacity: 0; transform: translateY(20px); filter: blur(5px); }
+        100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+    }
 
-        .stApp { background-color: #050505; color: #E0E0E0; }
-        h1, h2, h3 { font-family: 'Cormorant Garamond', serif !important; color: #F0F0F0 !important; }
-        p, div, label, input, button, textarea { font-family: 'Montserrat', sans-serif !important; font-weight: 300; }
-        .stTextInput > div > div > input { background-color: #0a0a0a; color: #fff; border: 1px solid #333; border-radius: 0px; padding: 12px; }
-        div.stButton > button { background-color: #F0F0F0; color: #000; border: none; border-radius: 0px; padding: 0.8rem 2rem; text-transform: uppercase; font-weight: 600; width: 100%; }
-        div.stButton > button:hover { background-color: #D4AF37; color: #fff; }
+    /* 2. APPLY ANIMATION TO THE MAIN CONTENT WRAPPER */
+    .block-container {
+        animation: cinematicFade 1.5s ease-out forwards; /* <--- THIS FADES THE DASHBOARD IN */
+    }
 
-        /* AUTH BADGE */
-        .auth-badge {
-            background-color: #D4AF37; color: #000; padding: 10px; text-align: center;
-            font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 12px;
-            margin-bottom: 20px; border: 1px solid #AA8C2C;
-        }
+    /* 3. CLEAN BACKGROUND (Remove Login Image) */
+    .stApp {
+        background-image: none !important;
+        background-color: #050505 !important;
+    }
 
-        /* HUD STYLING */
-        .scraped-data { font-size: 12px; color: #888; border-left: 2px solid #333; padding-left: 10px; }
+    /* 4. FONTS & UI POLISH */
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
 
-        [data-testid="column"] { padding-right: 20px !important; }
-        #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
-        </style>
-    """, unsafe_allow_html=True)
+    h1, h2, h3 { font-family: 'Cormorant Garamond', serif !important; color: #F0F0F0 !important; }
+    p, div, label, input, button, textarea { font-family: 'Montserrat', sans-serif !important; font-weight: 300; }
 
+    .stTextInput > div > div > input { background-color: #0a0a0a; color: #fff; border: 1px solid #333; }
+    div.stButton > button { background-color: #F0F0F0; color: #000; border: none; font-weight: 600; text-transform: uppercase; }
+    div.stButton > button:hover { background-color: #D4AF37; color: #fff; }
 
-inject_custom_css()
+    /* AUTH BADGE */
+    .auth-badge {
+        background-color: #D4AF37; color: #000; padding: 10px; text-align: center;
+        font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 12px;
+        margin-bottom: 20px; border: 1px solid #AA8C2C;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# --- 3. AUTH & STATE ---
+# --- 3. MAIN APP LOGIC STARTS HERE ---
 if "results" not in st.session_state: st.session_state.results = None
 if "p_name" not in st.session_state: st.session_state.p_name = ""
 if "imgs" not in st.session_state: st.session_state.imgs = []
@@ -222,7 +202,7 @@ with st.sidebar:
             st.rerun()
 
 
-# --- 4. ENGINE ---
+# --- HELPER FUNCTIONS (Scraper & AI) ---
 def get_valid_images(url_list):
     valid_images = []
     seen = set()
@@ -235,7 +215,6 @@ def get_valid_images(url_list):
             if w > 300 and h > 300 and 0.5 < (w / h) < 1.5:
                 valid_images.append(img)
                 seen.add(url)
-            # UPDATED LIMIT: CAP AT 4 IMAGES
             if len(valid_images) >= 4: break
         except:
             continue
@@ -247,49 +226,31 @@ def scrape_website(target_url):
     try:
         r = requests.get(target_url, headers=headers)
         soup = BeautifulSoup(r.content, 'html.parser')
-
         title = soup.find('h1').text.strip() if soup.find('h1') else "Lady Biba Piece"
 
-        # --- THE UNCENSORED SCRAPER (Let the AI see the Sizes) ---
         desc_text = ""
-
-        # 1. Target the specific class
         main_block = soup.find('div', class_='product__description')
-        if not main_block:
-            main_block = soup.find('div', class_='rte')
+        if not main_block: main_block = soup.find('div', class_='rte')
 
         if main_block:
-            # Clean up the text
             raw_text = main_block.get_text(separator="\n", strip=True)
-
-            # 2. THE ONLY FILTER: KILL THE SHIPPING POLICY
-            # We only block it if it EXPLICITLY talks about "Delivery" or "Returns" at the start.
             is_policy = any(x in raw_text[:100].upper() for x in ["DELIVERY", "RETURN", "SHIPPING", "PRE-ORDER"])
-
             if not is_policy and len(raw_text) > 10:
-                # We keep EVERYTHING else. Size charts, inseams, measurements.
                 desc_text = raw_text[:2500]
             else:
                 desc_text = ""
 
-                # 3. Fallback: If the main block failed, check paragraphs
         if not desc_text:
             ps = soup.find_all('p')
             clean_ps = []
             for p in ps:
                 t = p.text.strip()
-                # If it's a shipping policy, STOP reading.
-                if "Shipping" in t or "Returns" in t or "Delivery" in t:
-                    break
-                if len(t) > 3:
-                    clean_ps.append(t)
+                if "Shipping" in t or "Returns" in t or "Delivery" in t: break
+                if len(t) > 3: clean_ps.append(t)
             desc_text = "\n".join(clean_ps[:8])
 
-        # 4. If truly empty, tell the AI
         if not desc_text:
             desc_text = "[NO TEXT DESCRIPTION. DETECT FABRIC, CUT, AND VIBE FROM IMAGES ONLY.]"
-
-        # ---------------------------
 
         urls = [img.get('src') for img in soup.find_all('img') if img.get('src')]
         urls = ['https:' + u if u.startswith('//') else u for u in urls]
@@ -302,7 +263,6 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
-    # USE THE STABLE MODEL
     model = genai.GenerativeModel('gemini-flash-latest')
 
     persona_matrix = """
@@ -330,28 +290,12 @@ def generate_campaign(product_name, description, images, key):
 
     prompt = f"""
     Role: Senior Creative Director for Lady Biba.
-
     Product: {product_name}
-    Specs (Use these details): {description}
-
-    TASK:
-    1. Select TOP 3 Personas from the MASTER LIST below that fit this item.
-    2. Write 3 Captions (one per persona) + 1 Hybrid Strategy.
-
-    MASTER LIST:
-    {persona_matrix}
-
-    RULES:
-    - Use the scraped specs (fabric, cut, fit) to inform the copy.
-    - JSON OUTPUT ONLY.
-
-    Structure:
-    [
-        {{"persona": "Name", "post": "Caption..."}},
-        {{"persona": "Name", "post": "Caption..."}},
-        {{"persona": "Name", "post": "Caption..."}},
-        {{"persona": "Hybrid Strategy", "post": "Caption..."}}
-    ]
+    Specs: {description}
+    TASK: Select TOP 3 Personas from the MASTER LIST below that fit this item. Write 3 Captions (one per persona) + 1 Hybrid Strategy.
+    MASTER LIST: {persona_matrix}
+    RULES: Use scraped specs (fabric, cut, fit). JSON OUTPUT ONLY.
+    Structure: [ {{"persona": "Name", "post": "Caption..."}}, {{"persona": "Name", "post": "Caption..."}}, {{"persona": "Name", "post": "Caption..."}}, {{"persona": "Hybrid Strategy", "post": "Caption..."}} ]
     """
 
     payload = [prompt]
@@ -387,7 +331,7 @@ def save_to_notion(p_name, post, persona, token, db_id):
         return False, str(e)
 
 
-# --- 5. UI FLOW ---
+# --- 4. UI FLOW ---
 st.title("LADY BIBA / INTELLIGENCE")
 
 col1, col2 = st.columns([4, 1])
@@ -396,7 +340,6 @@ with col1:
 with col2:
     run_btn = st.button("GENERATE ASSETS")
 
-# --- AUTO-RESET LOGIC ---
 if url_input != st.session_state.last_url:
     st.session_state.results = None
     st.session_state.p_name = ""
@@ -406,7 +349,6 @@ if url_input != st.session_state.last_url:
 
 if run_btn and url_input:
     clean_url = url_input.split('?')[0]
-
     if not api_key:
         st.error("MISSING API KEY.")
     else:
@@ -424,25 +366,18 @@ if st.session_state.results:
     st.divider()
     st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
 
-    # TRUTH HUD
     with st.expander("👁️ View Raw Scraped Data (Verify AI Inputs)"):
-        st.caption("This is the exact text and images the AI is analyzing:")
+        st.caption("Exact text/images detected:")
         st.markdown(f"**Product Name:** {st.session_state.p_name}")
-        st.markdown("**Scraped Description:**")
         st.code(st.session_state.p_desc)
-        if not st.session_state.p_desc:
-            st.warning("⚠️ No description text found. AI is relying on images only.")
 
-    # DYNAMIC IMAGE LAYOUT (1 to 4 images)
     if st.session_state.imgs:
-        num_imgs = len(st.session_state.imgs)
-        cols = st.columns(num_imgs, gap="large")
+        cols = st.columns(len(st.session_state.imgs), gap="large")
         for i, col in enumerate(cols):
             with col: st.image(st.session_state.imgs[i], use_container_width=True)
 
     st.divider()
 
-    # ACTIONS
     if st.button("💾 EXPORT ALL TO NOTION", type="primary"):
         success = 0
         prog = st.progress(0)
@@ -458,7 +393,6 @@ if st.session_state.results:
     for i, item in enumerate(st.session_state.results):
         st.markdown(f"### {item['persona']}")
         edited = st.text_area("Caption", value=item['post'], height=150, key=f"edit_{i}", label_visibility="collapsed")
-
         if st.button(f"Export Only This", key=f"save_{i}"):
             s, m = save_to_notion(st.session_state.p_name, edited, item['persona'], notion_token, notion_db_id)
             if s:
