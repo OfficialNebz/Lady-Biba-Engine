@@ -121,6 +121,7 @@ def scrape_website(target_url):
             text = block.get_text(separator="\n", strip=True)
 
             # TRASH FILTER: If it looks like a policy, skip it.
+            # We check the first 50 chars for policy keywords.
             if "DELIVERY" in text[:50] or "RETURNS" in text[:50] or "Shipping" in text[:50]:
                 continue
 
