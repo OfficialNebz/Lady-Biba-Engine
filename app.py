@@ -116,7 +116,7 @@ def scrape_website(target_url):
 def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
     # Using specific model version to avoid 404s
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-flash-latest')
 
     # THE FULL 20-PERSONA MATRIX (From your PDF)
     persona_matrix = """
