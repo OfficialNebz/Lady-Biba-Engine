@@ -105,16 +105,33 @@ def scrape_website(target_url):
 
         title = soup.find('h1').text.strip() if soup.find('h1') else "Lady Biba Piece"
 
-        # TEXT SCRAPER
+        # --- SMART TEXT SCRAPER (FIXED) ---
         desc_text = ""
-        descs = soup.find_all('div', class_='product-description')
-        if not descs: descs = soup.find_all('div', class_='rte')
+        candidates = []
 
-        if descs:
-            desc_text = descs[0].get_text(separator="\n", strip=True)[:1500]
-        else:
+        # 1. Gather all potential description blocks
+        # Lady Biba uses 'product__description', 'rte', or 'description'
+        for class_name in ['product__description', 'rte', 'product-description', 'description']:
+            found = soup.find_all('div', class_=class_name)
+            for item in found:
+                text = item.get_text(separator="\n", strip=True)
+                if len(text) > 50:  # Ignore tiny texts like "Taxes included"
+                    candidates.append(text)
+
+        # 2. Fallback: Paragraphs
+        if not candidates:
             ps = soup.find_all('p')
-            desc_text = "\n".join([p.text.strip() for p in ps[:5]])  # Grab more paragraphs
+            combined_p = "\n".join([p.text.strip() for p in ps[:10]])  # Check first 10 paragraphs
+            if len(combined_p) > 50:
+                candidates.append(combined_p)
+
+        # 3. Select the longest candidate (The Logic: Description is always the longest text block)
+        if candidates:
+            desc_text = max(candidates, key=len)[:2000]  # Pick the biggest one, cap at 2000 chars
+        else:
+            desc_text = "Luxury fashion piece. See images for details."
+
+        # ----------------------------------
 
         urls = [img.get('src') for img in soup.find_all('img') if img.get('src')]
         urls = ['https:' + u if u.startswith('//') else u for u in urls]
@@ -127,7 +144,8 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-flash-latest')
+    # USE THE STABLE MODEL
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     persona_matrix = """
     1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
@@ -179,7 +197,6 @@ def generate_campaign(product_name, description, images, key):
     """
 
     payload = [prompt]
-    # Pass up to 4 images
     if images: payload.extend(images[:4])
 
     try:
@@ -261,7 +278,7 @@ if st.session_state.results:
     # DYNAMIC IMAGE LAYOUT (1 to 4 images)
     if st.session_state.imgs:
         num_imgs = len(st.session_state.imgs)
-        cols = st.columns(num_imgs, gap="large")  # This creates exactly the right amount of columns
+        cols = st.columns(num_imgs, gap="large")
         for i, col in enumerate(cols):
             with col: st.image(st.session_state.imgs[i], use_container_width=True)
 
