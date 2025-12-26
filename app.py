@@ -22,14 +22,39 @@ def inject_custom_css():
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
+
+        /* DARK MODE RESET */
         .stApp { background-color: #050505; color: #E0E0E0; }
+
+        /* TYPOGRAPHY */
         h1, h2, h3 { font-family: 'Cormorant Garamond', serif !important; color: #F0F0F0 !important; }
         p, div, label, input, button, textarea { font-family: 'Montserrat', sans-serif !important; font-weight: 300; }
+
+        /* INPUTS */
         .stTextInput > div > div > input { background-color: #0a0a0a; color: #fff; border: 1px solid #333; border-radius: 0px; padding: 12px; }
+
+        /* BUTTONS */
         div.stButton > button { background-color: #F0F0F0; color: #000; border: none; border-radius: 0px; padding: 0.8rem 2rem; text-transform: uppercase; font-weight: 600; width: 100%; }
         div.stButton > button:hover { background-color: #D4AF37; color: #fff; }
+
+        /* CUSTOM AUTH BADGE */
+        .auth-badge {
+            background-color: #D4AF37;
+            color: #000000;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #AA8C2C;
+        }
+
+        /* IMAGES & SPACING */
         [data-testid="column"] { padding-right: 20px !important; }
-        .stAlert { background-color: #330000; border: 1px solid #ff0000; color: #ffcccc; }
+
+        /* HIDE JUNK */
         #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
         </style>
     """, unsafe_allow_html=True)
@@ -53,12 +78,15 @@ if "GEMINI_API_KEY" in st.secrets:
 
 with st.sidebar:
     st.header("Atelier Settings")
+
     if not api_key:
         api_key = st.text_input("API Key", type="password")
         notion_token = st.text_input("Notion Token", type="password")
         notion_db_id = st.text_input("Database ID")
     else:
-        st.success("System Authenticated")
+        # THE GOLD BADGE YOU REQUESTED
+        st.markdown('<div class="auth-badge">SYSTEM AUTHENTICATED</div>', unsafe_allow_html=True)
+
         if st.button("Reset Session"):
             st.session_state.clear()
             st.rerun()
@@ -90,20 +118,12 @@ def scrape_website(target_url):
         r = requests.get(target_url, headers=headers)
         soup = BeautifulSoup(r.content, 'html.parser')
 
-        # 1. Title
         title_tag = soup.find('h1')
         title = title_tag.text.strip() if title_tag else "Lady Biba Piece"
 
-        # 2. Description
-        desc_text = "Lady Biba Fashion Piece."
         descs = soup.find_all('div', class_='product-description') or soup.find_all('div', class_='rte')
-        if descs:
-            desc_text = descs[0].get_text(strip=True)[:1000]
-        else:
-            ps = soup.find_all('p')
-            desc_text = " ".join([p.text.strip() for p in ps[:3]])
+        desc_text = descs[0].get_text(strip=True)[:1000] if descs else "Luxury fashion piece."
 
-        # 3. Images
         urls = [img.get('src') for img in soup.find_all('img') if img.get('src')]
         urls = ['https:' + u if u.startswith('//') else u for u in urls]
         valid_urls = [u for u in urls if 'logo' not in u.lower() and 'icon' not in u.lower()]
@@ -115,10 +135,10 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
-    # Using specific model version to avoid 404s
+
+    # REVERTING TO STABLE MODEL NAME
     model = genai.GenerativeModel('gemini-flash-latest')
 
-    # THE FULL 20-PERSONA MATRIX (From your PDF)
     persona_matrix = """
     1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
     2. The VI High-Court Lawyer (Tone: British Vogue Sophistication | Pain: 'Next Week Friday' Lies)
@@ -143,143 +163,40 @@ def generate_campaign(product_name, description, images, key):
     """
 
     prompt = f"""
-    You are the Senior Creative Director for Lady Biba.
+    Role: Senior Creative Director for Lady Biba.
 
-    STEP 1: ANALYZE THE PRODUCT
     Product: {product_name}
-    Description: {description}
-    Is it office wear? A party dress? A power suit?
+    Details: {description}
 
-    STEP 2: SELECT THE TARGETS
-    From the MASTER LIST below, select the TOP 3 personas that fit this specific item.
-    (e.g., Don't sell a mini-skirt to The Church Sister).
+    TASK:
+    1. Select TOP 3 Personas from the MASTER LIST below that fit this item.
+    2. Write 3 Captions (one per persona) + 1 Hybrid Strategy.
 
     MASTER LIST:
     {persona_matrix}
 
-    STEP 3: WRITE
-    Write 3 High-Conversion Captions (one for each selected persona) + 1 Hybrid Strategy.
+    RULES:
+    - No fluff. Speak to the pain point directly.
+    - JSON OUTPUT ONLY.
 
-    CRITICAL RULES:
-    1. USE THE SPECIFIC TONE & HOOK defined in the list.
-    2. REFERENCE LOCAL MARKERS (Eko Hotel, 3rd Mainland, Alara).
-    3. NO FLUFF.
-
-    Output JSON ONLY:
+    Structure:
     [
-        {{"persona": "Selected Persona Name 1", "post": "Caption content..."}},
-        {{"persona": "Selected Persona Name 2", "post": "Caption content..."}},
-        {{"persona": "Selected Persona Name 3", "post": "Caption content..."}},
-        {{"persona": "Hybrid Strategy", "post": "Caption content..."}}
+        {{"persona": "Name", "post": "Caption..."}},
+        {{"persona": "Name", "post": "Caption..."}},
+        {{"persona": "Name", "post": "Caption..."}},
+        {{"persona": "Hybrid Strategy", "post": "Caption..."}}
     ]
     """
 
     payload = [prompt]
-    # Add images if available, otherwise just text
-    if images:
-        payload.extend(images[:3])
+    if images: payload.extend(images[:3])
 
     try:
         response = model.generate_content(payload)
-        # Robust JSON cleaning
         txt = response.text
         if "```json" in txt:
             txt = txt.split("```json")[1].split("```")[0]
         elif "```" in txt:
             txt = txt.split("```")[1].split("```")[0]
-
         return json.loads(txt.strip())
     except Exception as e:
-        return [{"persona": "Error", "post": f"AI Error: {str(e)}"}]
-
-
-def save_to_notion(p_name, post, persona, token, db_id):
-    headers = {"Authorization": "Bearer " + token, "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-    data = {
-        "parent": {"database_id": db_id},
-        "properties": {
-            "Product Name": {"title": [{"text": {"content": p_name}}]},
-            "Persona": {"rich_text": [{"text": {"content": persona}}]},
-            "Generated Post": {"rich_text": [{"text": {"content": post[:2000]}}]}
-        }
-    }
-    try:
-        response = requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(data))
-        if response.status_code != 200: return False, response.text
-        return True, "Success"
-    except Exception as e:
-        return False, str(e)
-
-
-# --- 5. UI FLOW ---
-st.title("LADY BIBA / INTELLIGENCE")
-
-col1, col2 = st.columns([4, 1])
-with col1:
-    url_input = st.text_input("Product URL", placeholder="Paste Link...", label_visibility="collapsed")
-with col2:
-    run_btn = st.button("GENERATE ASSETS")
-
-# --- LOGIC ---
-if run_btn and url_input:
-    # 1. WIPE OLD STATE (The "Ghost Data" Fix)
-    st.session_state.results = None
-    st.session_state.p_name = ""
-    st.session_state.imgs = []
-
-    clean_url = url_input.split('?')[0]
-
-    if not api_key:
-        st.error("MISSING API KEY.")
-    else:
-        with st.spinner("Scanning Fabric & Context..."):
-            # UNPACK 3 VALUES
-            p_name, p_desc, valid_imgs = scrape_website(clean_url)
-
-            if p_name:
-                # SAVE NEW STATE
-                st.session_state.p_name = p_name
-                st.session_state.imgs = valid_imgs
-                st.session_state.results = generate_campaign(p_name, p_desc, valid_imgs, api_key)
-            else:
-                st.error("Scraping Failed.")
-
-# --- DISPLAY ---
-if st.session_state.results:
-    st.divider()
-    st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
-
-    # IMAGES
-    if st.session_state.imgs:
-        cols = st.columns(len(st.session_state.imgs), gap="large")
-        for i, col in enumerate(cols):
-            with col:
-                st.image(st.session_state.imgs[i], use_container_width=True)
-
-    st.divider()
-
-    # GLOBAL EXPORT
-    if st.button("💾 EXPORT ALL TO NOTION", type="primary"):
-        success = 0
-        prog = st.progress(0)
-        for i, item in enumerate(st.session_state.results):
-            s, m = save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token, notion_db_id)
-            if s:
-                success += 1
-            else:
-                st.error(f"Failed {item['persona']}: {m}")
-            prog.progress((i + 1) / len(st.session_state.results))
-        if success == len(st.session_state.results): st.success("Database Updated.")
-
-    # INDIVIDUAL CARDS
-    for i, item in enumerate(st.session_state.results):
-        st.markdown(f"### {item['persona']}")
-        edited = st.text_area("Caption", value=item['post'], height=150, key=f"edit_{i}", label_visibility="collapsed")
-
-        if st.button(f"Export Only This", key=f"save_{i}"):
-            s, m = save_to_notion(st.session_state.p_name, edited, item['persona'], notion_token, notion_db_id)
-            if s:
-                st.toast("Saved!")
-            else:
-                st.error(f"Error: {m}")
-        st.markdown("---")
