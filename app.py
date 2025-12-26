@@ -28,84 +28,99 @@ def check_password():
     if st.session_state.authenticated:
         return True
 
-    # --- CSS FOR THE LOGIN SCREEN (FADE IN + BLUR) ---
+    # --- CSS FOR THE LOGIN SCREEN (STATIC LUXURY) ---
     st.markdown("""
         <style>
-        /* 1. HIDE SIDEBAR & DEFAULT ELEMENTS */
+        /* 1. IMPORT FONTS FIRST */
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
+
+        /* 2. HIDE SIDEBAR & DEFAULT ELEMENTS */
         [data-testid="stSidebar"] { display: none; }
         header { visibility: hidden; }
         footer { visibility: hidden; }
 
-        /* 2. THE BACKGROUND IMAGE */
+        /* 3. THE BACKGROUND IMAGE */
         .stApp {
             background-image: url("https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2071&auto=format&fit=crop"); 
             background-size: cover;
             background-position: center;
         }
 
-        /* 3. THE BLUR OVERLAY */
+        /* 4. THE BLUR OVERLAY */
         .stApp::before {
             content: "";
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6); /* Dark tint */
-            backdrop-filter: blur(8px); /* REAL BLUR */
+            background: rgba(0, 0, 0, 0.7); /* Darker tint for contrast */
+            backdrop-filter: blur(5px); /* Static blur, no animation */
             z-index: -1;
         }
 
-        /* 4. ANIMATION: FADE IN THE LOGIN BOX */
-        @keyframes fadeInScale {
-            0% { opacity: 0; transform: scale(0.95); }
-            100% { opacity: 1; transform: scale(1); }
+        /* 5. FADE IN ANIMATION (PURE OPACITY) */
+        @keyframes subtleFade {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
         }
 
-        /* 5. THE LUXURY LOGIN BOX CONTAINER */
+        /* 6. THE LUXURY LOGIN BOX CONTAINER */
         .login-container {
-            animation: fadeInScale 1.5s ease-out forwards; /* <--- THIS MAKES IT FADE IN */
-            background-color: rgba(10, 10, 10, 0.9);
+            animation: subtleFade 2s ease-out forwards; /* Slow fade */
+            background-color: rgba(5, 5, 5, 0.95); /* Almost solid black */
             border: 1px solid #D4AF37;
-            padding: 50px;
-            box-shadow: 0 0 40px rgba(212, 175, 55, 0.15);
+            padding: 60px;
             text-align: center;
             margin-top: 15vh;
-            max-width: 500px;
+            max-width: 550px;
             margin-left: auto;
             margin-right: auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
-        /* 6. INPUT & BUTTON STYLING */
+        /* 7. INPUT & BUTTON STYLING */
         div[data-baseweb="input"] > div {
-            background-color: #050505 !important;
+            background-color: #111 !important;
             border: 1px solid #333 !important;
             color: #D4AF37 !important;
+            font-family: 'Montserrat', sans-serif !important;
+            letter-spacing: 2px;
+            text-align: center;
         }
+
+        /* THE BUTTON YOU WANTED */
         div.stButton > button {
             width: 100%;
             border: 1px solid #D4AF37 !important;
             color: #D4AF37 !important;
             background-color: transparent !important;
             font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
             letter-spacing: 2px;
-            transition: all 0.4s ease;
-            margin-top: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth easing */
+            margin-top: 25px;
+            padding: 15px 0;
         }
+
+        /* HOVER EFFECT: SCALE & GLOW */
         div.stButton > button:hover {
             background-color: #D4AF37 !important;
             color: #000 !important;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+            transform: scale(1.02); /* Subtle growth */
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); /* Gold Glow */
+            border-color: #D4AF37 !important;
         }
+
+        /* TYPE */
+        h1 { font-family: 'Cormorant Garamond', serif !important; color: #D4AF37 !important; letter-spacing: 1px; }
+        p { font-family: 'Montserrat', sans-serif !important; color: #888; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
         </style>
         """, unsafe_allow_html=True)
 
     # --- THE LOGIN UI ---
     with st.container():
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        st.markdown(
-            "<h1 style='text-align: center; color: #D4AF37; font-family: Cormorant Garamond; font-size: 40px; margin-bottom: 10px;'>ATELIER ACCESS</h1>",
-            unsafe_allow_html=True)
-        st.markdown(
-            "<p style='text-align: center; color: #888; font-size: 12px; letter-spacing: 1px; margin-bottom: 30px;'>AUTHORIZED PERSONNEL ONLY</p>",
-            unsafe_allow_html=True)
+        st.markdown("<h1>ATELIER ACCESS</h1>", unsafe_allow_html=True)
+        st.markdown("<p>Authorized Personnel Only</p>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
         with st.form("login_form"):
             password = st.text_input("ACCESS KEY", type="password", label_visibility="collapsed",
@@ -132,42 +147,64 @@ if not check_password():
     st.stop()
 
 # =========================================================
-# 🎬 CINEMATIC ENTRY (MAIN APP FADES IN HERE)
+# 🎬 THE MAIN APP (PURE FADE IN)
 # =========================================================
 
 st.markdown("""
     <style>
-    /* 1. KEYFRAMES FOR MAIN APP FADE-IN */
-    @keyframes cinematicFade {
-        0% { opacity: 0; transform: translateY(20px); filter: blur(5px); }
-        100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+    /* 1. KEYFRAMES FOR MAIN APP FADE-IN (NO SLIDING) */
+    @keyframes deepFade {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
     }
 
-    /* 2. APPLY ANIMATION TO THE MAIN CONTENT WRAPPER */
+    /* 2. APPLY ANIMATION */
     .block-container {
-        animation: cinematicFade 1.5s ease-out forwards; /* <--- THIS FADES THE DASHBOARD IN */
+        animation: deepFade 1.5s ease-out forwards;
     }
 
-    /* 3. CLEAN BACKGROUND (Remove Login Image) */
+    /* 3. CLEAN BACKGROUND (Void Black) */
     .stApp {
         background-image: none !important;
         background-color: #050505 !important;
     }
 
-    /* 4. FONTS & UI POLISH */
+    /* 4. TYPOGRAPHY ENFORCEMENT */
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
 
-    h1, h2, h3 { font-family: 'Cormorant Garamond', serif !important; color: #F0F0F0 !important; }
-    p, div, label, input, button, textarea { font-family: 'Montserrat', sans-serif !important; font-weight: 300; }
+    h1, h2, h3 { font-family: 'Cormorant Garamond', serif !important; color: #F0F0F0 !important; font-weight: 400; }
+    p, div, label, textarea { font-family: 'Montserrat', sans-serif !important; font-weight: 300; }
 
-    .stTextInput > div > div > input { background-color: #0a0a0a; color: #fff; border: 1px solid #333; }
-    div.stButton > button { background-color: #F0F0F0; color: #000; border: none; font-weight: 600; text-transform: uppercase; }
-    div.stButton > button:hover { background-color: #D4AF37; color: #fff; }
+    /* 5. MAIN APP INPUTS */
+    .stTextInput > div > div > input { 
+        background-color: #0a0a0a; 
+        color: #fff; 
+        border: 1px solid #333; 
+        font-family: 'Montserrat', sans-serif;
+    }
+
+    /* 6. MAIN APP BUTTONS */
+    div.stButton > button { 
+        background-color: #F0F0F0; 
+        color: #000; 
+        border: none; 
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 600; 
+        text-transform: uppercase;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    div.stButton > button:hover { 
+        background-color: #D4AF37; 
+        color: #fff; 
+        transform: scale(1.02); /* The same scaling effect */
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+    }
 
     /* AUTH BADGE */
     .auth-badge {
         background-color: #D4AF37; color: #000; padding: 10px; text-align: center;
-        font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 12px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 11px;
         margin-bottom: 20px; border: 1px solid #AA8C2C;
     }
     </style>
