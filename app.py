@@ -104,7 +104,7 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-flash-latest')
 
     # We stripped your prompt down to the essentials to stop the "Corny" output.
     # It now strictly forbids meta-commentary.
