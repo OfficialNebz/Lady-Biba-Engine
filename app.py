@@ -7,53 +7,47 @@ from bs4 import BeautifulSoup
 import google.generativeai as genai
 from PIL import Image
 from io import BytesIO
+import time
 
-import time  # Add this to your imports
+# --- 1. CONFIGURATION (MUST BE FIRST) ---
+st.set_page_config(
+    page_title="Lady Biba Client",
+    page_icon="✨",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 
 # --- THE VELVET ROPE (SECURITY LAYER) ---
 def check_password():
     """Returns `True` if the user had the correct password."""
 
-    # 1. Initialize State
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
 
-    # 2. If already in, don't show the door again
     if st.session_state.authenticated:
         return True
 
-    # 3. The "Locked" CSS (Blur & Gold)
+    # CSS for the Locked Screen
     st.markdown("""
         <style>
-        /* Hides the sidebar while locked */
         [data-testid="stSidebar"] { display: none; }
-
-        /* The "Blurry" Glass Effect Overlay */
         .stApp {
             background-image: url("https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2071&auto=format&fit=crop"); 
             background-size: cover;
         }
-
-        /* The Login Container */
         .login-box {
-            background-color: rgba(5, 5, 5, 0.85); /* Deep Black opacity */
-            border: 1px solid #D4AF37; /* Gold Border */
+            background-color: rgba(5, 5, 5, 0.85);
+            border: 1px solid #D4AF37;
             padding: 40px;
-            border-radius: 0px;
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
             text-align: center;
             margin-top: 15%;
         }
-
-        /* Input Field Styling */
         div[data-baseweb="input"] > div {
             background-color: #000 !important;
             border: 1px solid #333 !important;
             color: #D4AF37 !important; 
         }
-
-        /* Button Styling */
         button {
             border: 1px solid #D4AF37 !important;
             color: #D4AF37 !important;
@@ -67,10 +61,9 @@ def check_password():
         </style>
         """, unsafe_allow_html=True)
 
-    # 4. The Login UI
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown('<div style="height: 100px;"></div>', unsafe_allow_html=True)  # Spacer
+        st.markdown('<div style="height: 100px;"></div>', unsafe_allow_html=True)
         st.markdown(
             "<h1 style='text-align: center; color: #D4AF37; font-family: Cormorant Garamond;'>ATELIER ACCESS</h1>",
             unsafe_allow_html=True)
@@ -79,17 +72,13 @@ def check_password():
                                  placeholder="Enter Key...")
 
         if st.button("UNLOCK"):
-            if password == "neb123":  # <--- SET YOUR PASSWORD HERE
+            if password == "neb123":  # <--- YOUR PASSWORD
                 st.session_state.authenticated = True
-
-                # The "Access Granted" Toast
                 msg = st.toast("🔓 ACCESS GRANTED", icon="✨")
-                time.sleep(1.5)  # Wait for drama
-                msg.empty()  # Fade out
-                st.rerun()  # Reload the app in "Unlocked" mode
-
+                time.sleep(1.5)
+                msg.empty()
+                st.rerun()
             else:
-                # The "Wrong Password" Toast
                 msg = st.toast("⛔ UNAUTHORIZED ENTRY", icon="⚠️")
                 time.sleep(2)
                 msg.empty()
@@ -97,18 +86,14 @@ def check_password():
     return False
 
 
-
-# --- 1. CONFIGURATION ---
-st.set_page_config(
-    page_title="Lady Biba Client",
-    page_icon="✨",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# --- 2. THE BOUNCER CHECK (THIS WAS MISSING) ---
+if not check_password():
+    st.stop()  # <--- This stops the app from loading if password is wrong
 
 
-# --- 2. LUXURY VISUALS ---
+# --- 3. LUXURY VISUALS (The rest of your app starts here) ---
 def inject_custom_css():
+    # ... rest of your code ...
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
