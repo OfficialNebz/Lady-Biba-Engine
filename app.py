@@ -105,42 +105,35 @@ def scrape_website(target_url):
 
         title = soup.find('h1').text.strip() if soup.find('h1') else "Lady Biba Piece"
 
-        # --- FIXED SCRAPER LOGIC ---
+        # --- SURGICAL SCRAPER V4 (The Anti-Size-Chart Update) ---
         desc_text = ""
 
-        # 1. Target the specific class you showed me in Screenshot 264
-        # We look for 'product__description' specifically.
-        potential_blocks = soup.find_all('div', class_='product__description')
+        # 1. Target the specific class
+        main_block = soup.find('div', class_='product__description')
+        if not main_block:
+            main_block = soup.find('div', class_='rte')
 
-        # If that fails, try the generic Shopify 'rte' class
-        if not potential_blocks:
-            potential_blocks = soup.find_all('div', class_='rte')
+        if main_block:
+            raw_text = main_block.get_text(separator="\n", strip=True)
 
-        # 2. Iterate through found blocks and pick the first VALID one
-        for block in potential_blocks:
-            text = block.get_text(separator="\n", strip=True)
+            # 2. TRASH FILTERS
+            # Policy Trash
+            is_policy = any(x in raw_text[:50].upper() for x in ["DELIVERY", "RETURN", "SHIPPING", "PRE-ORDER"])
 
-            # TRASH FILTER: If it looks like a policy, skip it.
-            # We check the first 50 chars for policy keywords.
-            if "DELIVERY" in text[:50] or "RETURNS" in text[:50] or "Shipping" in text[:50]:
-                continue
+            # Size Chart Trash (The Burgundy Shirt Fix)
+            # If it mentions BUST, WAIST, and HIP, it is a size chart. Kill it.
+            size_keywords = ["BUST", "WAIST", "HIP", "UK", "US"]
+            hit_count = sum(1 for word in size_keywords if word in raw_text.upper())
+            is_size_chart = hit_count >= 3
 
-            # If we passed the filter, this is likely our description.
-            # We take the first good one we find.
-            if len(text) > 20:
-                desc_text = text[:1500]
-                break
+            if not is_policy and not is_size_chart and len(raw_text) > 30:
+                desc_text = raw_text[:1500]
+            else:
+                desc_text = ""
 
-                # 3. Last Resort Fallback (if the specific classes fail)
+                # 3. If empty, force the AI to use images
         if not desc_text:
-            ps = soup.find_all('p')
-            # Collect first 5 paragraphs, but filter out the shipping junk
-            clean_ps = []
-            for p in ps[:10]:
-                t = p.text.strip()
-                if "DELIVERY" not in t and "RETURNS" not in t and len(t) > 10:
-                    clean_ps.append(t)
-            desc_text = "\n".join(clean_ps[:5])
+            desc_text = "[NO TEXT DESCRIPTION. DETECT FABRIC, CUT, AND VIBE FROM IMAGES ONLY.]"
 
         # ---------------------------
 
