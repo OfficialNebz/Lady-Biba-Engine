@@ -106,7 +106,7 @@ if "GEMINI_API_KEY" in st.secrets:
 
 # Sidebar is for MANUAL OVERRIDE ONLY
 with st.sidebar:
-    st.header("Atelier Settings")
+    st.header("Settings")
     if not api_key:
         api_key = st.text_input("API Key", type="password")
         notion_token = st.text_input("Notion Token", type="password")
