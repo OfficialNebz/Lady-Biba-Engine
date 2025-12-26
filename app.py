@@ -22,7 +22,7 @@ def inject_custom_css():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
 
-        /* RESET & DARK MODE */
+        /* DARK MODE RESET */
         .stApp {
             background-color: #050505;
             color: #E0E0E0;
@@ -40,7 +40,7 @@ def inject_custom_css():
             font-weight: 300;
         }
 
-        /* INPUTS - SHARP & MINIMAL */
+        /* INPUTS */
         .stTextInput > div > div > input {
             background-color: #0a0a0a;
             color: #fff;
@@ -49,10 +49,10 @@ def inject_custom_css():
             padding: 12px;
         }
         .stTextInput > div > div > input:focus {
-            border-color: #D4AF37; /* Gold focus */
+            border-color: #D4AF37;
         }
 
-        /* BUTTONS - LUXURY INTERACTION */
+        /* BUTTONS */
         div.stButton > button {
             background-color: #F0F0F0;
             color: #000;
@@ -70,20 +70,21 @@ def inject_custom_css():
             background-color: #D4AF37;
             color: #fff;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
         }
 
-        /* IMAGE SPACING */
-        div[data-testid="column"] {
-            background: rgba(255,255,255,0.02);
-            padding: 10px;
-            border-radius: 4px; /* Subtle frame */
+        /* IMAGE SPACING & GAP FIX */
+        [data-testid="column"] {
+            padding-right: 20px !important; 
         }
         img {
-            border-radius: 2px;
+            border-radius: 4px;
+            transition: transform 0.3s ease;
+        }
+        img:hover {
+            transform: scale(1.02);
         }
 
-        /* HIDE JUNK */
+        /* HIDE STREAMLIT JUNK */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
@@ -98,13 +99,11 @@ api_key = None
 notion_token = None
 notion_db_id = None
 
-# Auto-load from Secrets
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
     notion_token = st.secrets["NOTION_TOKEN"]
     notion_db_id = st.secrets["NOTION_DB_ID"]
 
-# Manual Override (Sidebar)
 with st.sidebar:
     st.header("Atelier Settings")
     if not api_key:
@@ -122,14 +121,20 @@ with st.sidebar:
 def get_valid_images(url_list):
     """Filters images by size to kill logos."""
     valid_images = []
+    seen_urls = set()  # Avoid duplicates
+
     for url in url_list:
+        if url in seen_urls: continue
         try:
             response = requests.get(url, timeout=3)
             img = Image.open(BytesIO(response.content))
             w, h = img.size
+
             # Filter: Must be bigger than 300px and not a wide banner
             if w > 300 and h > 300 and 0.5 < (w / h) < 1.5:
                 valid_images.append(img)
+                seen_urls.add(url)
+
             if len(valid_images) >= 3:
                 break
         except:
@@ -138,7 +143,7 @@ def get_valid_images(url_list):
 
 
 def scrape_website(target_url):
-    """Returns Title, Description, AND Images (3 items)"""
+    """Returns exactly 3 items: Title, Description, Images"""
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
         r = requests.get(target_url, headers=headers)
@@ -146,18 +151,17 @@ def scrape_website(target_url):
 
         # 1. Title
         title_tag = soup.find('h1')
-        title = title_tag.text.strip() if title_tag else "Unknown Product"
+        title = title_tag.text.strip() if title_tag else "Lady Biba Piece"
 
-        # 2. Description (The Ground Truth)
+        # 2. Description
         desc_text = "Lady Biba Fashion Piece."
-        possible_descs = soup.find_all('div', class_='product-description')  # Common
+        possible_descs = soup.find_all('div', class_='product-description')
         if not possible_descs:
-            possible_descs = soup.find_all('div', class_='rte')  # Shopify standard
+            possible_descs = soup.find_all('div', class_='rte')
 
         if possible_descs:
             desc_text = possible_descs[0].get_text(strip=True)[:800]
         else:
-            # Fallback
             ps = soup.find_all('p')
             desc_text = " ".join([p.text.strip() for p in ps[:3]])
 
@@ -172,6 +176,7 @@ def scrape_website(target_url):
 
         final_images = get_valid_images(possible_urls)
 
+        # RETURNS 3 VALUES
         return title, desc_text, final_images
     except Exception as e:
         return None, None, []
@@ -179,7 +184,7 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     payload = [f"Product: {product_name}\n\nSpecs: {description}"]
     payload.extend(images)
@@ -272,22 +277,21 @@ if run_btn and url_input:
         st.error("MISSING API KEY.")
     else:
         with st.spinner("Analyzing Texture & Context..."):
-            # UNPACKING 3 VALUES (Fixes the Crash)
+            # --- THE FIX IS HERE: UNPACK 3 VALUES ---
             p_name, p_desc, valid_imgs = scrape_website(clean_url)
 
             if p_name and valid_imgs:
                 st.session_state.p_name = p_name
 
-                # IMAGE DISPLAY (Fixes the "Sandwich")
+                # --- VISUAL FIX: GAP="LARGE" ---
                 st.markdown("### Visual Analysis")
-                # Create columns equal to number of images with GAP
-                img_cols = st.columns(len(valid_imgs), gap="large")
-                for i, col in enumerate(img_cols):
-                    with col:
-                        # use_container_width makes it responsive
-                        st.image(valid_imgs[i], use_container_width=True)
+                if len(valid_imgs) > 0:
+                    cols = st.columns(len(valid_imgs), gap="large")
+                    for i, col in enumerate(cols):
+                        with col:
+                            st.image(valid_imgs[i], use_container_width=True)
 
-                        # Generate
+                # Generate
                 st.session_state.results = generate_campaign(p_name, p_desc, valid_imgs, api_key)
             else:
                 st.error("Scraping Failed. Check URL.")
