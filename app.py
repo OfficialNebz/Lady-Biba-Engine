@@ -105,7 +105,7 @@ def scrape_website(target_url):
 
         title = soup.find('h1').text.strip() if soup.find('h1') else "Lady Biba Piece"
 
-        # --- SURGICAL SCRAPER V4 (The Anti-Size-Chart Update) ---
+        # --- THE UNCENSORED SCRAPER (Let the AI see the Sizes) ---
         desc_text = ""
 
         # 1. Target the specific class
@@ -117,23 +117,30 @@ def scrape_website(target_url):
             # Clean up the text
             raw_text = main_block.get_text(separator="\n", strip=True)
 
-            # 2. TRASH FILTERS
-            # Policy Trash
-            is_policy = any(x in raw_text[:50].upper() for x in ["DELIVERY", "RETURN", "SHIPPING", "PRE-ORDER"])
+            # 2. THE ONLY FILTER: KILL THE SHIPPING POLICY
+            # We only block it if it EXPLICITLY talks about "Delivery" or "Returns" at the start.
+            is_policy = any(x in raw_text[:100].upper() for x in ["DELIVERY", "RETURN", "SHIPPING", "PRE-ORDER"])
 
-            # Size Chart Trash (This kills the "UK 6 / US 2" nonsense)
-            # If it mentions BUST, WAIST, and HIP, it is a size chart. Burn it.
-            size_keywords = ["BUST", "WAIST", "HIP", "UK", "US", "SIZE"]
-            hit_count = sum(1 for word in size_keywords if word in raw_text.upper())
-            # If it hits 3 or more keywords, it's a chart.
-            is_size_chart = hit_count >= 3
-
-            if not is_policy and not is_size_chart and len(raw_text) > 30:
-                desc_text = raw_text[:1500]
+            if not is_policy and len(raw_text) > 10:
+                # We keep EVERYTHING else. Size charts, inseams, measurements.
+                desc_text = raw_text[:2500]
             else:
                 desc_text = ""
 
-                # 3. If empty, force the AI to use images
+                # 3. Fallback: If the main block failed, check paragraphs
+        if not desc_text:
+            ps = soup.find_all('p')
+            clean_ps = []
+            for p in ps:
+                t = p.text.strip()
+                # If it's a shipping policy, STOP reading.
+                if "Shipping" in t or "Returns" in t or "Delivery" in t:
+                    break
+                if len(t) > 3:
+                    clean_ps.append(t)
+            desc_text = "\n".join(clean_ps[:8])
+
+        # 4. If truly empty, tell the AI
         if not desc_text:
             desc_text = "[NO TEXT DESCRIPTION. DETECT FABRIC, CUT, AND VIBE FROM IMAGES ONLY.]"
 
