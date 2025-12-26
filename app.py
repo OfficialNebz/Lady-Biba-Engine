@@ -145,7 +145,7 @@ def scrape_website(target_url):
 def generate_campaign(product_name, description, images, key):
     genai.configure(api_key=key)
     # USE THE STABLE MODEL
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-flash-latest')
 
     persona_matrix = """
     1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
