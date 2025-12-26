@@ -9,90 +9,82 @@ from io import BytesIO
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Lady Biba AI Content Engine",
+    page_title="Lady Biba Client",
+    page_icon="✨",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 
-# --- 2026 LUXURY CSS INJECTION ---
+# --- LUXURY CSS OVERRIDE ---
 def inject_custom_css():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
 
-        /* MAIN BACKGROUND */
+        /* RESET & DARK MODE */
         .stApp {
-            background-color: #050505;
-            background-image: radial-gradient(circle at 50% 10%, #1a1a1a 0%, #000000 100%);
-            color: #e0e0e0;
+            background-color: #000000;
+            color: #E0E0E0;
         }
 
-        /* TYPOGRAPHY */
+        /* HEADINGS - SERIF & ELEGANT */
         h1, h2, h3 {
-            font-family: 'Playfair Display', serif !important;
-            color: #D4AF37 !important; /* Gold */
-            font-weight: 700;
-        }
-        p, div, label, input {
-            font-family: 'Inter', sans-serif !important;
+            font-family: 'Cormorant Garamond', serif !important;
+            font-weight: 300 !important;
+            letter-spacing: 0.05rem;
+            color: #F0F0F0 !important;
         }
 
-        /* SIDEBAR STYLING */
-        [data-testid="stSidebar"] {
-            background-color: #0a0a0a;
-            border-right: 1px solid #333;
+        /* BODY TEXT - SANS SERIF */
+        p, div, label, input, button {
+            font-family: 'Montserrat', sans-serif !important;
+            font-weight: 300;
         }
 
-        /* INPUT FIELDS - MINIMALIST */
+        /* INPUTS - REMOVE BORDERS */
         .stTextInput > div > div > input {
             background-color: #111;
             color: #fff;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 10px;
-            transition: all 0.3s ease;
+            border: 1px solid #222;
+            border-radius: 0px; /* Sharp edges */
+            padding: 12px;
         }
         .stTextInput > div > div > input:focus {
-            border-color: #D4AF37;
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+            border-color: #555;
+            box-shadow: none;
         }
 
-        /* BUTTONS - KINETIC GOLD */
+        /* BUTTONS - MINIMALIST */
         div.stButton > button {
-            background: linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%);
+            background-color: #F0F0F0;
             color: #000;
             border: none;
-            padding: 0.6rem 1.2rem;
-            border-radius: 8px;
-            font-weight: 600;
+            border-radius: 0px;
+            padding: 0.8rem 2rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 100%;
+            letter-spacing: 2px;
+            font-size: 12px;
+            transition: all 0.3s ease;
         }
         div.stButton > button:hover {
+            background-color: #D4AF37; /* Gold on hover */
+            color: #fff;
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3);
-            color: #000;
-        }
-        div.stButton > button:active {
-            transform: translateY(1px);
         }
 
-        /* CARDS / CONTAINERS (Glassmorphism) */
-        div[data-testid="stExpander"] {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-            margin-bottom: 1rem;
-        }
+        /* HIDE UGLY STREAMLIT ELEMENTS */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
 
-        /* TOAST */
-        div[data-testid="stToast"] {
-            background-color: #D4AF37;
-            color: black;
+        /* IMAGES */
+        img {
+            filter: brightness(0.9);
+            transition: filter 0.3s;
+        }
+        img:hover {
+            filter: brightness(1.1);
         }
         </style>
     """, unsafe_allow_html=True)
@@ -100,81 +92,102 @@ def inject_custom_css():
 
 inject_custom_css()
 
-# --- AUTH LOGIC (THE FIX) ---
-# We define these variables globally first
+# --- AUTH LOGIC (SILENT & DEADLY) ---
+# Initialize
 api_key = None
 notion_token = None
 notion_db_id = None
 
+# Check Secrets
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    notion_token = st.secrets["NOTION_TOKEN"]
+    notion_db_id = st.secrets["NOTION_DB_ID"]
+
+# Sidebar is for MANUAL OVERRIDE ONLY
 with st.sidebar:
-    st.title("Credentials Room")
-
-    # Check if Secrets exist in Streamlit Cloud
-    if "GEMINI_API_KEY" in st.secrets and "NOTION_TOKEN" in st.secrets:
-        st.success("🔒 Secure Access: Active")
-        st.caption("Credentials loaded from encrypted cloud storage.")
-        # Assign directly from secrets
-        api_key = st.secrets["GEMINI_API_KEY"]
-        notion_token = st.secrets["NOTION_TOKEN"]
-        notion_db_id = st.secrets["NOTION_DB_ID"]
+    st.header("Atelier Settings")
+    if not api_key:
+        api_key = st.text_input("API Key", type="password")
+        notion_token = st.text_input("Notion Token", type="password")
+        notion_db_id = st.text_input("Database ID")
     else:
-        st.warning("⚠️ Local Mode")
-        api_key = st.text_input("Gemini API Key", type="password")
-        notion_token = st.text_input("Notion Secret Token", type="password")
-        notion_db_id = st.text_input("Notion Database ID")
-
-    st.markdown("---")
-    st.caption("v2.0 | Lady Biba Intelligent Systems")
+        st.success("System Authenticated")
+        if st.button("Reset Session"):
+            st.session_state.clear()
+            st.rerun()
 
 
-# --- CORE FUNCTIONS ---
+# --- INTELLIGENCE FUNCTIONS ---
+def get_valid_images(url_list):
+    """
+    Downloads images and filters out logos/icons by PIXEL SIZE.
+    This kills the logo bug permanently.
+    """
+    valid_images = []
+
+    for url in url_list:
+        try:
+            # Quick fetch
+            response = requests.get(url, timeout=5)
+            img = Image.open(BytesIO(response.content))
+
+            # THE FILTER:
+            # 1. Must be larger than 300x300px (kills icons)
+            # 2. Must not be extremely wide/flat (kills banners)
+            w, h = img.size
+            aspect = w / h
+
+            if w > 300 and h > 300 and 0.5 < aspect < 1.8:
+                valid_images.append(img)
+
+            if len(valid_images) >= 3:  # We only need 3 good shots
+                break
+        except:
+            continue
+
+    return valid_images
+
+
 def scrape_website(target_url):
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
         r = requests.get(target_url, headers=headers)
         soup = BeautifulSoup(r.content, 'html.parser')
-        title = soup.find('h1').text.strip()
 
-        image_urls = []
-        # Get all images
+        # Title Scrape
+        title_tag = soup.find('h1')
+        title = title_tag.text.strip() if title_tag else "Unknown Product"
+
+        # Image Scrape
+        possible_urls = []
         for img in soup.find_all('img'):
             src = img.get('src')
             if not src: continue
             if src.startswith('//'): src = 'https:' + src
 
-            # FILTERS: Remove logos, icons, and tiny images
-            lower_src = src.lower()
-            if 'logo' in lower_src or 'icon' in lower_src or 'svg' in lower_src: continue
+            # Preliminary string filter
+            if 'logo' not in src.lower() and 'icon' not in src.lower():
+                possible_urls.append(src)
 
-            # Lady Biba specific: products usually have /products/ or specific CDN paths
-            # We add a simple check to avoid navigation icons
-            if src not in image_urls:
-                image_urls.append(src)
+        # Deep Filter (Download & Check Size)
+        final_images = get_valid_images(possible_urls)
 
-        # Return top 4 distinct images (usually the product shots are first)
-        return title, image_urls[:4]
+        return title, final_images
     except Exception as e:
         return None, []
 
 
-def generate_campaign(product_name, image_urls, key):
+def generate_campaign(product_name, images, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-1.5-flash')  # Updated model name for better stability
+    # Using the standard stable model name
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
-    content_payload = []
-    content_payload.append(f"Product Name: {product_name}")
+    payload = [f"Analyze this fashion product: {product_name}"]
+    payload.extend(images)  # Add the actual PIL images
 
-    # Only try to load the first 3 images to save bandwidth/tokens
-    for url in image_urls[:3]:
-        try:
-            response = requests.get(url)
-            img = Image.open(BytesIO(response.content))
-            content_payload.append(img)
-        except:
-            continue
-
-    prompt = """
-Act as a high-end luxury fashion brand Lagos copywriter. You are able to generate the perfect mix of tones e.g. [Tone 1, e.g., British Vogue Sophistication] and [Tone 2, e.g., Lagos 'No-Nonsense' Confidence] for an instagram post.\n
+    prompt = f""" 
+    Act as a high-end luxury fashion brand Lagos copywriter. You are able to generate the perfect mix of tones e.g. [Tone 1, e.g., British Vogue Sophistication] and [Tone 2, e.g., Lagos 'No-Nonsense' Confidence] for an instagram post.\n
     You are able to identify core insecurities in the selected persona and your expertise enables you to carry out psychological triggers for High-Net-Worth Individuals (HNWIs).\n
     You are able to identify "Naija" Pain Points: The local frustration it solves, e.g., Tailor lies, fabric fading, or poor finishing\n
     You must identify the time-Wealth Factor: How much time/stress they save by buying ready-to-wear. Use AIDA model (Attention, Interest, Desire, Action). Apply the specific Tone and Pain Points relevant to THAT persona. Focus CTA on scarcity and time-wealth.\n
@@ -213,100 +226,83 @@ Act as a high-end luxury fashion brand Lagos copywriter. You are able to generat
         {{"persona": "Hybrid Strategy", "post": "Content of hybrid post..."}}
     ]
     """
-    content_payload.append(prompt)
+    payload.append(prompt)
 
     try:
-        response = model.generate_content(content_payload)
-        # Clean potential markdown code blocks
-        clean_text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_text)
+        response = model.generate_content(payload)
+        clean = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean)
     except Exception as e:
-        st.error(f"AI Error: {e}")
+        st.error(f"Generation Error: {e}")
         return []
 
 
-def save_to_notion(product_name, sales_post, persona, token, db_id):
+def save_to_notion(p_name, post, persona, token, db_id):
     headers = {
         "Authorization": "Bearer " + token,
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
     }
-    data = {
+    body = {
         "parent": {"database_id": db_id},
         "properties": {
-            "Product Name": {"title": [{"text": {"content": product_name}}]},
+            "Product Name": {"title": [{"text": {"content": p_name}}]},
             "Persona": {"rich_text": [{"text": {"content": persona}}]},
-            "Generated Post": {"rich_text": [{"text": {"content": sales_post[:2000]}}]}
+            "Generated Post": {"rich_text": [{"text": {"content": post[:2000]}}]}
         }
     }
-    requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(data))
+    requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(body))
 
 
-# --- MAIN UI ---
-st.title("👗 Lady Biba AI Content Engine")
-st.markdown("### The Lagos Luxury Marketing Suite")
+# --- MAIN INTERFACE ---
+st.title("LADY BIBA / INTELLIGENCE")
 
-# Input Section with stylized container
-with st.container():
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        target_url = st.text_input("Product URL", placeholder="Paste the Lady Biba link here...",
-                                   label_visibility="collapsed")
-    with col2:
-        generate_btn = st.button("Create")
+# Clean input state
+if "target_url" not in st.session_state:
+    st.session_state.target_url = ""
 
-# URL Cleaner
-if target_url:
-    target_url = target_url.split('?')[0]
+# Input
+col1, col2 = st.columns([4, 1])
+with col1:
+    url_input = st.text_input("Product URL", placeholder="https://ladybiba.com/...", label_visibility="collapsed")
+with col2:
+    run_btn = st.button("GENERATE ASSETS")
 
-# SESSION STATE MANAGEMENT
-if "results" not in st.session_state:
-    st.session_state.results = None
-if "p_name" not in st.session_state:
-    st.session_state.p_name = None
+# Processing
+if run_btn and url_input:
+    # URL Cleaning
+    clean_url = url_input.split('?')[0]
 
-# LOGIC FLOW
-if generate_btn:
-    if not api_key or not notion_token:
-        st.error("❌ CRITICAL: Credentials missing. Check Secrets or Sidebar.")
-    elif not target_url:
-        st.error("❌ INPUT ERROR: Paste a URL first.")
+    if not api_key:
+        st.error("SYSTEM HALTED: Missing Credentials.")
     else:
-        with st.spinner("💎 Analyzing Fabric, Cut, and Context..."):
-            p_name, images = scrape_website(target_url)
+        with st.spinner("Acquiring Visual Data..."):
+            p_name, valid_imgs = scrape_website(clean_url)
 
-            if p_name:
+            if p_name and valid_imgs:
                 st.session_state.p_name = p_name
-                # Display Images Grid - Dynamic
-                if images:
-                    valid_imgs = [x for x in images if 'logo' not in x]
-                    cols = st.columns(len(valid_imgs))
-                    for idx, img in enumerate(valid_imgs):
-                        with cols[idx]:
-                            st.image(img, use_container_width=True)
+                st.session_state.imgs = valid_imgs
 
-                # Generate
-                st.session_state.results = generate_campaign(p_name, images, api_key)
+                # Show Images (Clean Layout)
+                st.image(valid_imgs, width=200, caption=["Visual 1", "Visual 2", "Visual 3"][:len(valid_imgs)])
+
+                with st.spinner("Drafting Copy..."):
+                    st.session_state.results = generate_campaign(p_name, valid_imgs, api_key)
             else:
-                st.error("❌ SCRAPE FAILED: Website security blocked us or link is invalid.")
+                st.error("Acquisition Failed. Link invalid or images too small.")
 
-# RESULTS DASHBOARD
-if st.session_state.results:
+# Results Display
+if "results" in st.session_state and st.session_state.results:
     st.divider()
-    st.subheader(f"Strategy For: {st.session_state.p_name}")
+    st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
 
-    # Bulk Action
-    if st.button("💾 EXPORT ALL TO NOTION DATABASE"):
-        bar = st.progress(0)
-        for i, item in enumerate(st.session_state.results):
+    # Global Save
+    if st.button("EXPORT CAMPAIGN TO DATABASE"):
+        for item in st.session_state.results:
             save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token, notion_db_id)
-            bar.progress((i + 1) / len(st.session_state.results))
-        st.success("✅ Database Updated Successfully")
+        st.success("DATA EXPORTED.")
 
-    # Cards
+    # Individual Cards
     for item in st.session_state.results:
-        with st.expander(f"🎯 Target: {item['persona']}", expanded=True):
+        with st.expander(f"{item['persona'].upper()}", expanded=True):
             st.write(item['post'])
-            if st.button(f"Export Only This", key=item['persona']):
-                save_to_notion(st.session_state.p_name, item['post'], item['persona'], notion_token, notion_db_id)
-                st.toast("Saved to Notion")
