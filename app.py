@@ -7,13 +7,79 @@ import google.generativeai as genai
 from PIL import Image
 from io import BytesIO
 
+
+def inject_custom_css():
+    st.markdown("""
+        <style>
+        /* Import a fancy font */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@300;400&display=swap');
+
+        /* Main Background - Dark Luxury */
+        .stApp {
+            background-color: #0e0e0e;
+            color: #f0f0f0;
+        }
+
+        /* Headings - Gold & Serif */
+        h1, h2, h3 {
+            font-family: 'Playfair Display', serif;
+            color: #d4af37 !important; /* Lady Biba Gold */
+        }
+
+        /* Buttons - Gold Gradient */
+        div.stButton > button {
+            background: linear-gradient(45deg, #d4af37, #aa8c2c);
+            color: black;
+            border: none;
+            font-weight: bold;
+            font-family: 'Lato', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        div.stButton > button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+        }
+
+        /* Inputs */
+        .stTextInput > div > div > input {
+            background-color: #1a1a1a;
+            color: white;
+            border: 1px solid #333;
+        }
+
+        /* Expander Styling */
+        .streamlit-expanderHeader {
+            font-family: 'Playfair Display', serif;
+            color: #d4af37;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+
+# CALL THIS RIGHT AFTER set_page_config
+# inject_custom_css()
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Lady Biba AI Content Engine", page_icon="👗", layout="wide")
+inject_custom_css()
 
 # --- SIDEBAR: SETTINGS (The "Hookup") ---
+# --- SIDEBAR: SETTINGS ---
 with st.sidebar:
     st.header("⚙️ Configuration")
-    st.write("Enter your credentials to unlock the engine.")
+
+    # Try to load from secrets first, otherwise ask user
+    if "GEMINI_API_KEY" in st.secrets:
+        st.success("✅ Credentials Loaded from Secrets")
+        api_key_input = st.secrets["GEMINI_API_KEY"]
+        notion_token_input = st.secrets["NOTION_TOKEN"]
+        notion_db_input = st.secrets["NOTION_DB_ID"]
+    else:
+        st.warning("⚠️ No secrets found. Enter manually.")
+        api_key_input = st.text_input("Gemini API Key", type="password")
+        notion_token_input = st.text_input("Notion Secret Token", type="password")
+        notion_db_input = st.text_input("Notion Database ID")
 
     # User inputs their own keys (or you hardcode yours if you sell access)
     api_key_input = st.text_input("Gemini API Key", type="password")
@@ -151,10 +217,18 @@ if st.button("🚀 Generate Campaign"):
                 st.session_state.product_name = product_name  # SAVE TO STATE
 
                 # Show images
-                cols = st.columns(3)
-                for i, img_url in enumerate(images):
-                    with cols[i]:
-                        st.image(img_url, use_container_width=True)
+                # Dynamic Layout
+                if images:
+                    # Filter out likely logo/junk images that might have slipped through
+                    # (Lady Biba logos usually have 'logo' or are small, but let's be safer)
+                    valid_images = [img for img in images if "logo" not in img.lower()]
+
+                    # Create exactly as many columns as valid images found
+                    cols = st.columns(len(valid_images))
+
+                    for i, img_url in enumerate(valid_images):
+                        with cols[i]:
+                            st.image(img_url, use_container_width=True)
 
                 with st.spinner("🧠 Dreaming up strategy... (This takes 10s)"):
                     results = generate_campaign(product_name, images, api_key_input)
