@@ -19,6 +19,7 @@ st.set_page_config(
 
 
 # --- THE VELVET ROPE (SECURITY LAYER) ---
+# --- THE VELVET ROPE (SECURITY LAYER) ---
 def check_password():
     """Returns `True` if the user had the correct password."""
 
@@ -28,63 +29,132 @@ def check_password():
     if st.session_state.authenticated:
         return True
 
-    # CSS for the Locked Screen
+    # --- ADVANCED CSS ANIMATIONS ---
     st.markdown("""
         <style>
+        /* 1. HIDE SIDEBAR & DEFAULT ELEMENTS */
         [data-testid="stSidebar"] { display: none; }
+        header { visibility: hidden; }
+        footer { visibility: hidden; }
+
+        /* 2. THE BLURRY BACKGROUND */
         .stApp {
             background-image: url("https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2071&auto=format&fit=crop"); 
             background-size: cover;
+            background-position: center;
         }
-        .login-box {
-            background-color: rgba(5, 5, 5, 0.85);
+
+        /* The Overlay that blurs the image */
+        .stApp::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6); /* Dark tint */
+            backdrop-filter: blur(8px); /* REAL BLUR EFFECT */
+            z-index: -1;
+        }
+
+        /* 3. ANIMATIONS DEFINITIONS */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* 4. THE LUXURY LOGIN BOX */
+        .login-container {
+            animation: fadeIn 0.8s ease-out; /* Smooth Entry */
+            background-color: rgba(10, 10, 10, 0.9);
             border: 1px solid #D4AF37;
-            padding: 40px;
+            padding: 50px;
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.15);
             text-align: center;
-            margin-top: 15%;
+            margin-top: 15vh; /* Center vertically */
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
         }
+
+        /* 5. INPUT FIELD STYLING */
         div[data-baseweb="input"] > div {
-            background-color: #000 !important;
+            background-color: #050505 !important;
             border: 1px solid #333 !important;
-            color: #D4AF37 !important; 
+            color: #D4AF37 !important;
+            transition: all 0.3s ease;
         }
-        button {
+        div[data-baseweb="input"] > div:focus-within {
+            border-color: #D4AF37 !important;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        /* 6. BUTTON STYLING */
+        div.stButton > button {
+            width: 100%;
             border: 1px solid #D4AF37 !important;
             color: #D4AF37 !important;
             background-color: transparent !important;
-            transition: all 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 2px;
+            transition: all 0.4s ease;
+            margin-top: 20px;
         }
-        button:hover {
+        div.stButton > button:hover {
             background-color: #D4AF37 !important;
             color: #000 !important;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+            transform: scale(1.02);
         }
+
+        /* ERROR STATE (Class to add via Python if possible, or just toast) */
         </style>
         """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown('<div style="height: 100px;"></div>', unsafe_allow_html=True)
+    # --- THE UI STRUCTURE ---
+    # We use a container to group the "Box" visual
+    with st.container():
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+
         st.markdown(
-            "<h1 style='text-align: center; color: #D4AF37; font-family: Cormorant Garamond;'>ATELIER ACCESS</h1>",
+            "<h1 style='text-align: center; color: #D4AF37; font-family: Cormorant Garamond; font-size: 40px; margin-bottom: 10px;'>ATELIER</h1>",
+            unsafe_allow_html=True)
+        st.markdown(
+            "<p style='text-align: center; color: #888; font-size: 12px; letter-spacing: 1px; margin-bottom: 30px;'>AUTHORIZED PERSONNEL ONLY</p>",
             unsafe_allow_html=True)
 
-        password = st.text_input("ENTER ACCESS KEY", type="password", label_visibility="collapsed",
-                                 placeholder="Enter Key...")
+        # The Form prevents reloading until "Submit" is clicked
+        with st.form("login_form"):
+            password = st.text_input("ACCESS KEY", type="password", label_visibility="collapsed",
+                                     placeholder="ENTER KEY")
+            submit = st.form_submit_button("UNLOCK SYSTEM")
 
-        if st.button("UNLOCK"):
-            if password == "neb123":  # <--- YOUR PASSWORD
-                st.session_state.authenticated = True
-                msg = st.toast("🔓 ACCESS GRANTED", icon="✨")
-                time.sleep(1.5)
-                msg.empty()
-                st.rerun()
-            else:
-                msg = st.toast("⛔ UNAUTHORIZED ENTRY", icon="⚠️")
-                time.sleep(2)
-                msg.empty()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- LOGIC ---
+    if submit:
+        if password == "neb123":
+            st.session_state.authenticated = True
+            # Success Toast
+            st.toast("✨ ACCESS GRANTED. WELCOME.")
+            time.sleep(1)
+            st.rerun()
+        else:
+            # Error Toast
+            st.toast("⚠️ ACCESS DENIED. INVALID CREDENTIALS.")
+            # We can't easily trigger CSS shake from Python without a rerun,
+            # but the toast provides the feedback you need.
+            time.sleep(1)
 
     return False
-
 
 # --- 2. THE BOUNCER CHECK (THIS WAS MISSING) ---
 if not check_password():
