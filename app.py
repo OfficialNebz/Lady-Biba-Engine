@@ -22,16 +22,26 @@ def inject_custom_css():
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
+
         .stApp { background-color: #050505; color: #E0E0E0; }
         h1, h2, h3 { font-family: 'Cormorant Garamond', serif !important; color: #F0F0F0 !important; }
         p, div, label, input, button, textarea { font-family: 'Montserrat', sans-serif !important; font-weight: 300; }
         .stTextInput > div > div > input { background-color: #0a0a0a; color: #fff; border: 1px solid #333; border-radius: 0px; padding: 12px; }
         div.stButton > button { background-color: #F0F0F0; color: #000; border: none; border-radius: 0px; padding: 0.8rem 2rem; text-transform: uppercase; font-weight: 600; width: 100%; }
         div.stButton > button:hover { background-color: #D4AF37; color: #fff; }
+
+        /* AUTH BADGE */
+        .auth-badge {
+            background-color: #D4AF37; color: #000; padding: 10px; text-align: center;
+            font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 12px;
+            margin-bottom: 20px; border: 1px solid #AA8C2C;
+        }
+
+        /* HUD STYLING */
+        .scraped-data { font-size: 12px; color: #888; border-left: 2px solid #333; padding-left: 10px; }
+
         [data-testid="column"] { padding-right: 20px !important; }
         #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
-        /* DEBUG BOX STYLING */
-        .debug-box { font-family: monospace; font-size: 10px; color: #666; border: 1px dashed #333; padding: 10px; margin-top: 10px; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -41,8 +51,9 @@ inject_custom_css()
 # --- 3. AUTH & STATE ---
 if "results" not in st.session_state: st.session_state.results = None
 if "p_name" not in st.session_state: st.session_state.p_name = ""
-if "p_desc" not in st.session_state: st.session_state.p_desc = ""  # New: Store Description for Debug
 if "imgs" not in st.session_state: st.session_state.imgs = []
+if "p_desc" not in st.session_state: st.session_state.p_desc = ""
+if "last_url" not in st.session_state: st.session_state.last_url = ""
 
 api_key = None
 notion_token = None
@@ -60,10 +71,8 @@ with st.sidebar:
         notion_token = st.text_input("Notion Token", type="password")
         notion_db_id = st.text_input("Database ID")
     else:
-        st.markdown(
-            '<div style="color:#D4AF37; border:1px solid #D4AF37; padding:5px; text-align:center;">SYSTEM AUTHENTICATED</div>',
-            unsafe_allow_html=True)
-        if st.button("HARD RESET"):
+        st.markdown('<div class="auth-badge">SYSTEM AUTHENTICATED</div>', unsafe_allow_html=True)
+        if st.button("Force Reset"):
             st.session_state.clear()
             st.rerun()
 
@@ -81,7 +90,8 @@ def get_valid_images(url_list):
             if w > 300 and h > 300 and 0.5 < (w / h) < 1.5:
                 valid_images.append(img)
                 seen.add(url)
-            if len(valid_images) >= 3: break
+            # UPDATED LIMIT: CAP AT 4 IMAGES
+            if len(valid_images) >= 4: break
         except:
             continue
     return valid_images
@@ -93,41 +103,26 @@ def scrape_website(target_url):
         r = requests.get(target_url, headers=headers)
         soup = BeautifulSoup(r.content, 'html.parser')
 
-        # 1. Title
         title = soup.find('h1').text.strip() if soup.find('h1') else "Lady Biba Piece"
 
-        # 2. Description (UPGRADED FOR BULLET POINTS)
+        # TEXT SCRAPER
         desc_text = ""
+        descs = soup.find_all('div', class_='product-description')
+        if not descs: descs = soup.find_all('div', class_='rte')
 
-        # Try finding the specific description block
-        product_block = soup.find('div', class_='product-description') or \
-                        soup.find('div', class_='rte') or \
-                        soup.find('div', {'itemprop': 'description'})
-
-        if product_block:
-            # Get paragraphs
-            ps = [p.get_text(strip=True) for p in product_block.find_all('p')]
-            # Get bullet points (The Barrel Pants Fix)
-            lis = [li.get_text(strip=True) for li in product_block.find_all('li')]
-
-            # Combine them
-            full_text = " ".join(ps) + " " + " ".join(lis)
-            desc_text = full_text[:1500]  # Limit char count
+        if descs:
+            desc_text = descs[0].get_text(separator="\n", strip=True)[:1500]
         else:
-            # Fallback: Scrape all paragraphs in the body
             ps = soup.find_all('p')
-            desc_text = " ".join([p.text.strip() for p in ps[:5]])
+            desc_text = "\n".join([p.text.strip() for p in ps[:5]])  # Grab more paragraphs
 
-        if not desc_text: desc_text = "No textual description found. Analyze visual data only."
-
-        # 3. Images
         urls = [img.get('src') for img in soup.find_all('img') if img.get('src')]
         urls = ['https:' + u if u.startswith('//') else u for u in urls]
         valid_urls = [u for u in urls if 'logo' not in u.lower() and 'icon' not in u.lower()]
 
         return title, desc_text, get_valid_images(valid_urls)
     except Exception as e:
-        return None, f"Scrape Error: {e}", []
+        return None, f"Error: {str(e)}", []
 
 
 def generate_campaign(product_name, description, images, key):
@@ -160,9 +155,8 @@ def generate_campaign(product_name, description, images, key):
     prompt = f"""
     Role: Senior Creative Director for Lady Biba.
 
-    INPUT DATA:
     Product: {product_name}
-    Specs/Description: {description}
+    Specs (Use these details): {description}
 
     TASK:
     1. Select TOP 3 Personas from the MASTER LIST below that fit this item.
@@ -172,8 +166,7 @@ def generate_campaign(product_name, description, images, key):
     {persona_matrix}
 
     RULES:
-    - Use the Description facts (e.g., if it says "Denim", sell Denim. If it says "Silk", sell Silk).
-    - No fluff. Speak to the pain point directly.
+    - Use the scraped specs (fabric, cut, fit) to inform the copy.
     - JSON OUTPUT ONLY.
 
     Structure:
@@ -186,7 +179,8 @@ def generate_campaign(product_name, description, images, key):
     """
 
     payload = [prompt]
-    if images: payload.extend(images[:3])
+    # Pass up to 4 images
+    if images: payload.extend(images[:4])
 
     try:
         response = model.generate_content(payload)
@@ -221,22 +215,19 @@ def save_to_notion(p_name, post, persona, token, db_id):
 # --- 5. UI FLOW ---
 st.title("LADY BIBA / INTELLIGENCE")
 
+col1, col2 = st.columns([4, 1])
+with col1:
+    url_input = st.text_input("Product URL", placeholder="Paste Link...", label_visibility="collapsed")
+with col2:
+    run_btn = st.button("GENERATE ASSETS")
 
-# CALLBACK FUNCTION TO CLEAR STATE
-def clear_state():
+# --- AUTO-RESET LOGIC ---
+if url_input != st.session_state.last_url:
     st.session_state.results = None
     st.session_state.p_name = ""
     st.session_state.imgs = []
     st.session_state.p_desc = ""
-
-
-col1, col2 = st.columns([4, 1])
-with col1:
-    # ADDED on_change TO AUTO-WIPE WHEN URL CHANGES
-    url_input = st.text_input("Product URL", placeholder="Paste Link...", label_visibility="collapsed",
-                              on_change=clear_state)
-with col2:
-    run_btn = st.button("GENERATE ASSETS")
+    st.session_state.last_url = url_input
 
 if run_btn and url_input:
     clean_url = url_input.split('?')[0]
@@ -244,40 +235,39 @@ if run_btn and url_input:
     if not api_key:
         st.error("MISSING API KEY.")
     else:
-        with st.spinner("Extracting DNA..."):
+        with st.spinner("Scanning Fabric & Context..."):
             p_name, p_desc, valid_imgs = scrape_website(clean_url)
-
             if p_name:
                 st.session_state.p_name = p_name
-                st.session_state.p_desc = p_desc
                 st.session_state.imgs = valid_imgs
+                st.session_state.p_desc = p_desc
                 st.session_state.results = generate_campaign(p_name, p_desc, valid_imgs, api_key)
             else:
                 st.error("Scraping Failed.")
 
-# --- RESULTS DASHBOARD ---
 if st.session_state.results:
     st.divider()
     st.subheader(f"CAMPAIGN: {st.session_state.p_name.upper()}")
 
-    # 1. IMAGES
+    # TRUTH HUD
+    with st.expander("👁️ View Raw Scraped Data (Verify AI Inputs)"):
+        st.caption("This is the exact text and images the AI is analyzing:")
+        st.markdown(f"**Product Name:** {st.session_state.p_name}")
+        st.markdown("**Scraped Description:**")
+        st.code(st.session_state.p_desc)
+        if not st.session_state.p_desc:
+            st.warning("⚠️ No description text found. AI is relying on images only.")
+
+    # DYNAMIC IMAGE LAYOUT (1 to 4 images)
     if st.session_state.imgs:
-        cols = st.columns(len(st.session_state.imgs), gap="large")
+        num_imgs = len(st.session_state.imgs)
+        cols = st.columns(num_imgs, gap="large")  # This creates exactly the right amount of columns
         for i, col in enumerate(cols):
             with col: st.image(st.session_state.imgs[i], use_container_width=True)
 
-    # 2. THE TRUTH BOX (Inspector)
-    with st.expander("🕵️ INSPECTOR: What did the AI actually read?"):
-        st.markdown(f"**Scraped Text:**")
-        st.caption(st.session_state.p_desc)
-        if "No textual description" in st.session_state.p_desc:
-            st.warning("⚠️ Warning: No description text found. AI is guessing based on images only.")
-        else:
-            st.success("✅ Text Data Acquired.")
-
     st.divider()
 
-    # 3. GLOBAL EXPORT
+    # ACTIONS
     if st.button("💾 EXPORT ALL TO NOTION", type="primary"):
         success = 0
         prog = st.progress(0)
@@ -290,7 +280,6 @@ if st.session_state.results:
             prog.progress((i + 1) / len(st.session_state.results))
         if success == len(st.session_state.results): st.success("Database Updated.")
 
-    # 4. CARDS
     for i, item in enumerate(st.session_state.results):
         st.markdown(f"### {item['persona']}")
         edited = st.text_area("Caption", value=item['post'], height=150, key=f"edit_{i}", label_visibility="collapsed")
