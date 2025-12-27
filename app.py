@@ -17,7 +17,9 @@ st.set_page_config(
 
 # --- GLOBAL CONSTANTS ---
 # We define this here to prevent any URL syntax errors later
-NOTION_API_URL = "https://api.notion.com/v1/pages"
+# --- GLOBAL CONSTANTS ---
+# .strip() removes invisible whitespace/newlines that cause "No connection adapter" errors
+NOTION_API_URL = "https://api.notion.com/v1/pages".strip()
 
 
 
@@ -223,16 +225,26 @@ def generate_campaign(product_name, description, key):
 
     # FULL LADY BIBA MATRIX
     persona_matrix = """
-    1. The Tech-Bro VC (Tone: Lethal Precision)
-    2. The VI High-Court Lawyer (Tone: British Vogue Sophistication)
-    3. The Diaspora Investor (Tone: 'Old Money' Security)
-    4. The Eco-Conscious Gen Z (Tone: Aggressive Hype)
-    5. The Oil & Gas Director (Tone: Understated Luxury)
-    6. The Balogun Market 'Oga' (Tone: Lagos 'No-Nonsense')
-    7. The Wedding Guest Pro (Tone: Kinetic Energy)
-    8. The Fintech Founder (Tone: Afro-Futuristic)
-    9. The High-Society Matriarch (Tone: Maternal Authority)
-    10. The Creative Director (Tone: Intellectual Dominance)
+    1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
+    2. The VI High-Court Lawyer (Tone: British Vogue Sophistication | Pain: 'Next Week Friday' Lies)
+    3. The Diaspora Investor (Tone: 'Old Money' Security | Pain: Invisible in Grey Suits)
+    4. The Eco-Conscious Gen Z (Tone: Aggressive Hype | Pain: Decision Fatigue)
+    5. The Oil & Gas Director (Tone: Understated Luxury | Pain: Time-Wealth Depletion)
+    6. The Balogun Market 'Oga' (Tone: Lagos 'No-Nonsense' | Pain: Fabric Fading Shame)
+    7. The Wedding Guest Pro (Tone: Kinetic Energy | Pain: Heat/Humidity Armor)
+    8. The Fintech Founder (Tone: Afro-Futuristic | Pain: Poor Finishing Scars)
+    9. The High-Society Matriarch (Tone: Maternal Authority | Pain: Economic Friction)
+    10. The Creative Director (Tone: Intellectual Dominance | Pain: 'Fast-Fashion' Fragility)
+    11. The Side-Hustle Queen (Tone: Relatable Hustle | Pain: Office TGIF-to-Party Crisis)
+    12. The Real Estate Mogul (Tone: Unapologetic Power | Pain: Imposter Syndrome)
+    13. The Corporate Librarian (Tone: Quiet Confidence | Pain: The 9AM Boardroom Fear)
+    14. The Instagram Influencer (Tone: Viral/Trend-Focused | Pain: 'Sold Out' Anxiety)
+    15. The Medical Consultant (Tone: Clinical/Structured | Pain: 24-Hour Style Durability)
+    16. The Church 'Sister' Elite (Tone: Pious/Premium | Pain: Modesty vs Style Battle)
+    17. The Media Personality (Tone: Electric/Charismatic | Pain: Narrative Inconsistency)
+    18. The Event Planner (Tone: Chaos-Control | Pain: Opportunity Cost of Waiting)
+    19. The UN/NGO Official (Tone: Diplomatic/Polished | Pain: Cultural Identity Gap)
+    20. The Retail Investor (Tone: Analytical/Speculative | Pain: ROI on Self-Presentation)
     """
 
     prompt = f"""
@@ -264,27 +276,40 @@ def generate_campaign(product_name, description, key):
 
 def save_to_notion(p_name, post, persona, token, db_id):
     if not token or not db_id: return False, "Notion Secrets Missing"
-    headers = {"Authorization": "Bearer " + token, "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+
+    # HARD FIX: Ensure URL is clean immediately before use
+    url = NOTION_API_URL.strip()
+
+    headers = {
+        "Authorization": "Bearer " + token.strip(),
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+    }
+
     data = {
-        "parent": {"database_id": db_id},
+        "parent": {"database_id": db_id.strip()},
         "properties": {
-            "Product Name": {"title": [{"text": {"content": p_name}}]},
-            "Persona": {"rich_text": [{"text": {"content": persona}}]},
-            "Generated Post": {"rich_text": [{"text": {"content": post[:2000]}}]}
+            "Product Name": {"title": [{"text": {"content": str(p_name)}}]},
+            "Persona": {"rich_text": [{"text": {"content": str(persona)}}]},
+            "Generated Post": {"rich_text": [{"text": {"content": str(post)[:2000]}}]}
         }
     }
+
     try:
-        # GLOBAL URL VARIABLE USED HERE
-        response = requests.post(NOTION_API_URL, headers=headers, data=json.dumps(data))
+        # Added timeout=10 to prevent the "Blue Line of Death" (infinite hanging)
+        response = requests.post(url, headers=headers, data=json.dumps(data), timeout=10)
 
         if response.status_code == 200:
             return True, "Success"
         elif response.status_code == 401:
             return False, "❌ INVALID NOTION TOKEN. Check secrets.toml."
         else:
-            return False, f"Notion Error: {response.text}"
+            return False, f"Notion Error {response.status_code}: {response.text}"
+
+    except requests.exceptions.MissingSchema:
+        return False, f"❌ URL ERROR: The URL '{url}' is invalid. Check for typos."
     except Exception as e:
-        return False, str(e)
+        return False, f"System Error: {str(e)}"
 
 
 # --- 7. UI LAYOUT ---
@@ -313,31 +338,32 @@ if st.session_state.results:
 
     if st.button("💾 EXPORT CAMPAIGN TO NOTION", type="primary"):
         success_count = 0
+        fail_count = 0
         progress_bar = st.progress(0)
+        status_text = st.empty()  # Placeholder for status updates
+
         for i, item in enumerate(st.session_state.results):
             p_val = item.get('persona', item.get('Persona', ''))
             post_val = item.get('post', item.get('Post', ''))
+
             if p_val and post_val:
+                status_text.text(f"Uploading: {p_val}...")
                 s, m = save_to_notion(st.session_state.p_name, post_val, p_val, notion_token, notion_db_id)
-                if s: success_count += 1
+                if s:
+                    success_count += 1
+                else:
+                    fail_count += 1
+                    st.error(f"Failed to upload {p_val}: {m}")  # Show error immediately
+
             progress_bar.progress((i + 1) / len(st.session_state.results))
+
+        status_text.empty()  # Clear status
 
         if success_count > 0:
             st.success(f"SUCCESS: {success_count} Assets Uploaded.")
+            if fail_count > 0:
+                st.warning(f"⚠️ {fail_count} failed. Check errors above.")
             time.sleep(2)
             st.rerun()
-
-    for i, item in enumerate(st.session_state.results):
-        p_val = item.get('persona', item.get('Persona', ''))
-        post_val = item.get('post', item.get('Post', ''))
-
-        if p_val and post_val:
-            st.markdown(f"### {p_val}")
-            edited = st.text_area("Caption", value=post_val, height=140, key=f"edit_{i}")
-            if st.button(f"Export Only This", key=f"save_{i}"):
-                s, m = save_to_notion(st.session_state.p_name, edited, p_val, notion_token, notion_db_id)
-                if s:
-                    st.toast("Saved!")
-                else:
-                    st.error(f"Error: {m}")
-            st.markdown("---")
+        elif fail_count > 0:
+            st.error("❌ ALL UPLOADS FAILED. Check your Notion ID and Token.")
