@@ -14,6 +14,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+
+# --- GLOBAL CONSTANTS ---
+# We define this here to prevent any URL syntax errors later
+NOTION_API_URL = "https://api.notion.com/v1/pages"
+
+
+
 # --- 2. LUXURY CSS ENGINE ---
 st.markdown("""
     <style>
@@ -267,10 +274,15 @@ def save_to_notion(p_name, post, persona, token, db_id):
         }
     }
     try:
-        # === CRITICAL FIX: REMOVED MARKDOWN BRACKETS ===
-        response = requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(data))
-        if response.status_code != 200: return False, response.text
-        return True, "Success"
+        # GLOBAL URL VARIABLE USED HERE
+        response = requests.post(NOTION_API_URL, headers=headers, data=json.dumps(data))
+
+        if response.status_code == 200:
+            return True, "Success"
+        elif response.status_code == 401:
+            return False, "❌ INVALID NOTION TOKEN. Check secrets.toml."
+        else:
+            return False, f"Notion Error: {response.text}"
     except Exception as e:
         return False, str(e)
 
