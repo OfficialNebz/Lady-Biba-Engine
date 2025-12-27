@@ -232,7 +232,7 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-flash-latest')
 
     # RESTORED: Full 20 Persona Matrix
     persona_matrix = """
@@ -263,7 +263,7 @@ def generate_campaign(product_name, description, key):
     Role: Head of Brand Narrative for 'Lady Biba'.
     Product: {product_name}
     Specs: {description}
-    TASK: Select TOP 3 Personas from the MASTER LIST. Write 3 Captions + 1 Hybrid Strategy.
+    TASK: Select TOP 3 Personas from the MASTER LIST. Write 3 Captions + 1 Hybrid Strategy. Each caption should be exactly 70 words.
     MASTER LIST: {persona_matrix}
 
     CRITICAL RULE: You MUST quote specific fabric/cut/fit details from the Specs (e.g., 'crepe', 'peplum', 'fitted') in every caption.
