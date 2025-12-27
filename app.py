@@ -336,8 +336,7 @@ if st.session_state.results:
     st.divider()
     st.subheader(st.session_state.p_name.upper())
 
-    # --- 1. GLOBAL EXPORT BUTTON ---
-    # This button now intelligently looks for your EDITS in the text boxes below.
+    # --- 1. GLOBAL EXPORT BUTTON (Captures Edits) ---
     if st.button("💾 EXPORT ALL ASSETS", type="primary", use_container_width=True):
         success_count = 0
         fail_count = 0
@@ -347,8 +346,8 @@ if st.session_state.results:
         for i, item in enumerate(st.session_state.results):
             p_val = item.get('persona', item.get('Persona', ''))
 
-            # CRITICAL: Grab the EDITED text from the widget state if it exists.
-            # If you haven't edited it, it falls back to the original AI generation.
+            # LOGIC: Check if you edited the text box (editor_i).
+            # If yes, use that. If no, use the original AI text.
             widget_key = f"editor_{i}"
             original_post = item.get('post', item.get('Post', ''))
             final_post = st.session_state.get(widget_key, original_post)
@@ -368,7 +367,7 @@ if st.session_state.results:
 
         if success_count > 0:
             st.success(f"SUCCESS: {success_count} Assets Uploaded.")
-            time.sleep(2)  # Give you a moment to see the victory
+            time.sleep(2)
             st.rerun()
         elif fail_count > 0:
             st.error("❌ ALL UPLOADS FAILED. Check your Notion ID and Token.")
@@ -381,28 +380,29 @@ if st.session_state.results:
         original_post = item.get('post', item.get('Post', ''))
 
         with st.container():
-            # LAYOUT FIX: 70% for Text, 30% for Action Button to prevent "vanishing buttons"
+            # 70% Text Area | 30% Save Button
             col1, col2 = st.columns([0.7, 0.3])
 
             with col1:
                 st.subheader(persona)
-                # EDITABLE FIELD: The 'key' binds this box to session_state
-                # We use this key above in the "Export All" logic to grab your changes.
+                # THIS CREATES THE GREY EDITABLE BOX
+                # 'edited_text' captures whatever you type here.
                 edited_text = st.text_area(
                     label=f"Edit Copy for {persona}",
                     value=original_post,
-                    height=180,
+                    height=250,
                     key=f"editor_{i}",
                     label_visibility="collapsed"
                 )
 
             with col2:
-                st.write("##")  # Spacer to push button down
+                st.write("##")  # Spacers to align button
                 st.write("##")
+
                 # INDIVIDUAL SAVE BUTTON
+                # It sends 'edited_text' (your changes) to Notion
                 if st.button("💾 SAVE THIS ONE", key=f"btn_{i}"):
                     with st.spinner("Saving..."):
-                        # We save 'edited_text', which captures whatever you just typed
                         s, m = save_to_notion(st.session_state.p_name, edited_text, persona, notion_token, notion_db_id)
                         if s:
                             st.toast(f"✅ Saved: {persona}")
