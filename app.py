@@ -336,11 +336,12 @@ if st.session_state.results:
     st.divider()
     st.subheader(st.session_state.p_name.upper())
 
+    # 1. THE EXPORT BUTTON (Only runs when clicked)
     if st.button("💾 EXPORT CAMPAIGN TO NOTION", type="primary"):
         success_count = 0
         fail_count = 0
         progress_bar = st.progress(0)
-        status_text = st.empty()  # Placeholder for status updates
+        status_text = st.empty()
 
         for i, item in enumerate(st.session_state.results):
             p_val = item.get('persona', item.get('Persona', ''))
@@ -353,11 +354,11 @@ if st.session_state.results:
                     success_count += 1
                 else:
                     fail_count += 1
-                    st.error(f"Failed to upload {p_val}: {m}")  # Show error immediately
+                    st.error(f"Failed to upload {p_val}: {m}")
 
             progress_bar.progress((i + 1) / len(st.session_state.results))
 
-        status_text.empty()  # Clear status
+        status_text.empty()
 
         if success_count > 0:
             st.success(f"SUCCESS: {success_count} Assets Uploaded.")
@@ -367,3 +368,14 @@ if st.session_state.results:
             st.rerun()
         elif fail_count > 0:
             st.error("❌ ALL UPLOADS FAILED. Check your Notion ID and Token.")
+
+    # 2. THE DISPLAY LOOP (Must be OUTSIDE the button, aligned with 'if st.button')
+    # This runs every time the page loads if results exist.
+    st.markdown("---")
+    for item in st.session_state.results:
+        persona = item.get('persona', item.get('Persona', 'Unknown'))
+        post = item.get('post', item.get('Post', 'No content'))
+
+        with st.container():
+            st.subheader(persona)  # Changed to subheader for better visibility
+            st.info(post)                
