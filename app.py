@@ -170,50 +170,83 @@ def scrape_website(target_url):
     if "ladybiba.com" not in target_url:
         return None, "❌ ERROR: INVALID DOMAIN. This system is locked to Lady Biba assets only."
 
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    clean_url = target_url.split('?')[0]
-    json_url = f"{clean_url}.json"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
 
+    clean_url = target_url.split('?')[0]
     title = "Lady Biba Piece"
     desc_text = ""
 
-    # Try JSON Backdoor
+    # --- TIER 1: SHOPIFY JSON API (The Golden Key) ---
     try:
+        json_url = f"{clean_url}.json"
         r = requests.get(json_url, headers=headers, timeout=5)
         if r.status_code == 200:
             data = r.json().get('product', {})
             title = data.get('title', title)
             raw_html = data.get('body_html', "")
+
+            # Fast clean of the HTML from JSON
             soup = BeautifulSoup(raw_html, 'html.parser')
-            raw_text = soup.get_text(separator="\n", strip=True)
+            desc_text = soup.get_text(separator="\n", strip=True)
+            if desc_text: return title, _clean_text(desc_text)
+    except Exception:
+        pass  # Silently fail to Tier 2
 
-            clean_lines = []
-            for line in raw_text.split('\n'):
-                upper = line.upper()
-                if any(x in upper for x in ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING"]):
-                    continue
-                if len(line) > 5: clean_lines.append(line)
-            desc_text = "\n".join(clean_lines)
-    except:
-        pass
+    # --- TIER 2 & 3: PAGE META DATA (The SEO Safety Net) ---
+    try:
+        r = requests.get(target_url, headers=headers, timeout=10)
+        if r.status_code != 200: return None, f"❌ SITE ERROR: {r.status_code}"
 
-    # Fallback
-    if not desc_text:
-        try:
-            r = requests.get(target_url, headers=headers, timeout=10)
-            soup = BeautifulSoup(r.content, 'html.parser')
-            title = soup.find('h1').text.strip() if soup.find('h1') else title
-            main_block = soup.find('div', class_='product__description')
-            if not main_block: main_block = soup.find('div', class_='rte')
-            if main_block:
-                desc_text = main_block.get_text(separator="\n", strip=True)
-                clean_lines = [l for l in desc_text.split('\n') if "SHIPPING" not in l.upper() and len(l) > 5]
-                desc_text = "\n".join(clean_lines[:25])
-        except Exception as e:
-            return None, f"Scrape Error: {str(e)}"
+        soup = BeautifulSoup(r.content, 'html.parser')
 
-    if not desc_text: desc_text = "[NO TEXT FOUND.]"
-    return title, desc_text
+        # Grab Title
+        if soup.find('h1'): title = soup.find('h1').text.strip()
+
+        # Strategy A: Meta Description (Highest Reliability)
+        meta_desc = soup.find('meta', property='og:description') or soup.find('meta', attrs={'name': 'description'})
+        if meta_desc:
+            content = meta_desc.get('content', '').strip()
+            if len(content) > 20:
+                return title, content
+
+        # Strategy B: Schema.org JSON-LD (Structured Data)
+        for script in soup.find_all('script', type='application/ld+json'):
+            try:
+                data = json.loads(script.string)
+                if '@type' in data and 'Product' in data['@type']:
+                    if 'description' in data:
+                        return title, _clean_text(data['description'])
+            except:
+                continue
+
+        # Strategy C: Visual Fallback (The "Brute Force" Method)
+        main_block = soup.find('div', class_='product__description') or \
+                     soup.find('div', class_='rte') or \
+                     soup.find('div', id='description')
+
+        if main_block:
+            desc_text = main_block.get_text(separator="\n", strip=True)
+            return title, _clean_text(desc_text)
+
+    except Exception as e:
+        return None, f"Scrape Error: {str(e)}"
+
+    return title, "[NO DATA FOUND. The site structure may have changed.]"
+
+
+def _clean_text(raw_text):
+    """Helper to remove shipping info and clutter"""
+    clean_lines = []
+    for line in raw_text.split('\n'):
+        upper = line.upper()
+        # Filter out common e-commerce noise
+        if any(x in upper for x in
+               ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING", "RETURNS"]):
+            continue
+        if len(line) > 5: clean_lines.append(line)
+    return "\n".join(clean_lines[:30])  # Return top 30 lines only
 
 
 def generate_campaign(product_name, description, key):
@@ -274,7 +307,6 @@ def generate_campaign(product_name, description, key):
 def save_to_notion(p_name, post, persona, token, db_id):
     if not token or not db_id: return False, "Notion Secrets Missing"
 
-    # HARD FIX: Ensure URL is clean immediately before use
     url = NOTION_API_URL.strip()
 
     headers = {
@@ -293,44 +325,89 @@ def save_to_notion(p_name, post, persona, token, db_id):
     }
 
     try:
-        # Added timeout=10 to prevent the "Blue Line of Death" (infinite hanging)
-        response = requests.post(url, headers=headers, data=json.dumps(data), timeout=10)
+        # TIMEOUT: We give Notion 15 seconds. If it sleeps, we kill it.
+        response = requests.post(url, headers=headers, data=json.dumps(data), timeout=15)
 
         if response.status_code == 200:
             return True, "Success"
         elif response.status_code == 401:
             return False, "❌ INVALID NOTION TOKEN. Check secrets.toml."
+        elif response.status_code == 404:
+            return False, "❌ DATABASE NOT FOUND. Check your Database ID."
         else:
             return False, f"Notion Error {response.status_code}: {response.text}"
 
+    except requests.exceptions.Timeout:
+        return False, "⏳ TIMEOUT: Notion is taking too long to respond. Try again in 5 seconds."
+    except requests.exceptions.ConnectionError:
+        return False, "🔌 CONNECTION ERROR: Check your internet connection."
     except requests.exceptions.MissingSchema:
-        return False, f"❌ URL ERROR: The URL '{url}' is invalid. Check for typos."
+        return False, f"❌ URL ERROR: The URL '{url}' is invalid."
     except Exception as e:
         return False, f"System Error: {str(e)}"
 
 
 # --- 7. UI LAYOUT ---
 st.title("LADY BIBA / INTELLIGENCE")
+
+# [INSERT THIS BLOCK HERE]
+with st.expander("📖 SYSTEM MANUAL (CLICK TO OPEN)"):
+    st.markdown("### OPERATIONAL GUIDE")
+
+    # STEP 1
+    c1, c2 = st.columns([1, 1.5])
+    with c1:
+        st.markdown("""
+        **STEP 1: SOURCE SELECTION**
+        GO TO THE LADY BIBA WEBSITE AND OPEN A PRODUCT PAGE OF YOUR CHOICE.
+
+        *Criteria:* The URL must follow this structure: 
+        `https://ladybiba.com/products/product-name`
+        """)
+    with c2:
+        # ENSURE 'Screenshot (449).png' IS IN YOUR APP FOLDER
+        st.image("Screenshot (449).png", caption="Valid Product Page Example", use_container_width=True)
+
+    st.divider()
+
+    # STEP 2
+    c3, c4 = st.columns([1, 1.5])
+    with c3:
+        st.markdown("""
+        **STEP 2: ACQUISITION**
+        COPY THE FULL URL FROM THE BROWSER ADDRESS BAR.
+
+        *Note:* Ensure no extra query parameters (junk after the ?) are included if possible, though the system can handle some noise.
+        """)
+    with c4:
+        st.image("Screenshot (450).png", caption="Copying the Asset Link", use_container_width=True)
+
+    st.divider()
+
+    # STEP 3
+    c5, c6 = st.columns([1, 1.5])
+    with c5:
+        st.markdown("""
+        **STEP 3: INJECTION**
+        RETURN TO THIS INTELLIGENCE TERMINAL. PASTE THE LINK IN THE SEARCH BAR AND PRESS 'GENERATE ASSETS'.
+
+        *Action:* Wait for the system to scrape and analyze the construction.
+        """)
+    with c6:
+        st.image("Screenshot (452).png", caption="System Injection Point", use_container_width=True)
+
+    st.divider()
+
+    # STEP 4 (Fixed your numbering error)
+    st.markdown("""
+    **STEP 4: EXPORT**
+    ONCE THE INTELLIGENCE REPORT IS READY, REVIEW THE TEXT. 
+    YOU CAN EDIT THE COPY DIRECTLY IN THE TERMINAL. 
+    WHEN SATISFIED, CLICK **'EXPORT TO NOTION'** TO SYNC WITH THE DATABASE.
+    """)
+# [END BLOCK]
+
 url_input = st.text_input("Product URL", placeholder="Paste Lady Biba URL...")
-
-if st.button("GENERATE ASSETS"):
-    if not api_key:
-        st.error("API Key Missing.")
-    elif not url_input:
-        st.error("Paste a URL first.")
-    else:
-        with st.spinner("Analyzing Construction..."):
-            # 1. INCREMENT GEN_ID TO KILL OLD CACHE
-            st.session_state.gen_id += 1
-
-            p_name, p_desc = scrape_website(url_input)
-
-            # GUARD: STOP IF URL IS WRONG
-            if p_name is None:  # Scraper returns None on fail
-                st.error(p_desc)
-            else:
-                st.session_state.p_name = p_name
-                st.session_state.results = generate_campaign(p_name, p_desc, api_key)
 
 if st.session_state.results:
     st.divider()
