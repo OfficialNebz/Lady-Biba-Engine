@@ -369,13 +369,32 @@ if st.session_state.results:
         elif fail_count > 0:
             st.error("❌ ALL UPLOADS FAILED. Check your Notion ID and Token.")
 
-    # 2. THE DISPLAY LOOP (Must be OUTSIDE the button, aligned with 'if st.button')
-    # This runs every time the page loads if results exist.
-    st.markdown("---")
-    for item in st.session_state.results:
-        persona = item.get('persona', item.get('Persona', 'Unknown'))
-        post = item.get('post', item.get('Post', 'No content'))
+        # 2. THE DISPLAY & INDIVIDUAL EXPORT LOOP
+        # We use st.columns to put the text and the button side-by-side
+        st.markdown("---")
 
-        with st.container():
-            st.subheader(persona)  # Changed to subheader for better visibility
-            st.info(post)                
+        # We MUST use enumerate(..., start=0) to get a unique index 'i' for every item
+        for i, item in enumerate(st.session_state.results):
+            persona = item.get('persona', item.get('Persona', 'Unknown'))
+            post = item.get('post', item.get('Post', 'No content'))
+
+            with st.container():
+                # Create a 2-column layout: Text (Left) vs Action (Right)
+                col1, col2 = st.columns([0.85, 0.15])
+
+                with col1:
+                    st.subheader(persona)
+                    st.info(post)
+
+                with col2:
+                    st.write("##")  # Spacer to push button down to align with text
+                    # UNIQUE KEY IS CRITICAL HERE: key=f"btn_{i}"
+                    if st.button("💾 SAVE", key=f"btn_{i}", help=f"Export only {persona}"):
+                        with st.spinner("Saving..."):
+                            s, m = save_to_notion(st.session_state.p_name, post, persona, notion_token, notion_db_id)
+                            if s:
+                                st.toast(f"✅ Saved: {persona}")  # Non-intrusive success message
+                            else:
+                                st.error(f"Failed: {m}")
+
+            st.markdown("---")  # Visual separator between assets
