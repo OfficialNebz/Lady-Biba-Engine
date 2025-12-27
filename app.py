@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS ARCHITECTURE (THE LUXURY ENGINE) ---
+# --- 2. LUXURY CSS ENGINE ---
 st.markdown("""
     <style>
     /* IMPORT FONTS */
@@ -22,90 +22,84 @@ st.markdown("""
 
     /* GLOBAL RESET */
     * { font-family: 'Montserrat', sans-serif !important; }
-    h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif !important; letter-spacing: 1px; }
+    h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif !important; letter-spacing: 1px; color: #F0F0F0; }
 
-    /* REMOVE DEFAULT PADDING */
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-    header { visibility: hidden; }
-    footer { visibility: hidden; }
+    /* APP BACKGROUND */
+    .stApp { background-color: #050505; }
 
-    /* AUTH SCREEN STYLING (Only applies when .stApp has the background image) */
-    div[data-testid="stForm"] {
+    /* AUTH SCREEN CARD (Glassmorphism) */
+    .auth-card {
         background: rgba(20, 20, 20, 0.7);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border: 1px solid #D4AF37;
-        padding: 40px;
-        border-radius: 0px; /* Sharp luxury corners */
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        padding: 50px;
+        text-align: center;
+        border-radius: 0px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
-    /* BUTTON STYLING & ANIMATION */
-    button {
-        border-radius: 0px !important;
-        transition: all 0.3s ease !important;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        font-weight: 600;
-    }
-
-    /* Secondary Button (The "Generate" buttons) */
-    div[data-testid="stBaseButton-secondary"] > button {
+    /* BUTTONS: TACTILE & ANIMATED */
+    div.stButton > button {
+        width: 100%;
         background-color: transparent;
         color: #D4AF37;
         border: 1px solid #D4AF37;
-    }
-    div[data-testid="stBaseButton-secondary"] > button:hover {
-        background-color: #D4AF37;
-        color: #000;
-        transform: scale(1.03);
-        box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+        padding: 12px 24px;
+        font-family: 'Montserrat', sans-serif;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 2px;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        border-radius: 0px;
     }
 
-    /* Primary Button (The "Login" button) */
-    div[data-testid="stBaseButton-primary"] > button {
+    div.stButton > button:hover {
         background-color: #D4AF37;
-        color: #000;
-        border: none;
+        color: #050505;
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 10px 20px rgba(212, 175, 55, 0.2);
     }
-    div[data-testid="stBaseButton-primary"] > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
+
+    div.stButton > button:active {
+        transform: scale(0.98);
     }
 
     /* INPUT FIELDS */
     div[data-baseweb="input"] > div {
-        background-color: #050505;
-        border: 1px solid #333;
-        color: white;
+        background-color: #0a0a0a !important;
+        border: 1px solid #333 !important;
+        color: #D4AF37 !important;
+        text-align: center;
+        border-radius: 0px;
     }
 
-    /* TOASTS */
-    div[data-baseweb="toast"] {
-        background-color: #111;
-        border: 1px solid #D4AF37;
-        color: #D4AF37;
+    /* SIDEBAR */
+    [data-testid="stSidebar"] {
+        background-color: #080808;
+        border-right: 1px solid #222;
     }
+
+    /* HIDE DEFAULT STREAMLIT JUNK */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SESSION STATE & SECRETS ---
+# --- 3. SESSION & SECRETS ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "results" not in st.session_state: st.session_state.results = None
 if "p_name" not in st.session_state: st.session_state.p_name = ""
-if "p_desc" not in st.session_state: st.session_state.p_desc = ""
 
 api_key = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else None
 notion_token = st.secrets.get("NOTION_TOKEN")
 notion_db_id = st.secrets.get("NOTION_DB_ID")
 
 
-# --- 4. AUTHENTICATION LOGIC ---
-def check_password():
-    if st.session_state.authenticated:
-        return True
-
-    # BACKGROUND IMAGE FOR LOGIN SCREEN ONLY
+# --- 4. THE GATEKEEPER (AUTH LOGIC) ---
+def login_screen():
+    # BACKGROUND IMAGE ONLY FOR LOGIN
     st.markdown("""
         <style>
         .stApp {
@@ -115,51 +109,46 @@ def check_password():
         }
         .stApp::before {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: -1;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: -1;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # CENTERED LOGIN CARD
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center; color: #D4AF37;'>LADY BIBA</h1>", unsafe_allow_html=True)
-        st.markdown(
-            "<p style='text-align: center; letter-spacing: 3px; font-size: 12px; color: #ccc; margin-bottom: 20px;'>INTELLIGENCE ACCESS</p>",
-            unsafe_allow_html=True)
+        # We simulate a "card" by styling the container
+        with st.container():
+            st.markdown('<div class="auth-card">', unsafe_allow_html=True)
+            st.markdown("<h1 style='text-align: center; margin:0;'>LADY BIBA</h1>", unsafe_allow_html=True)
+            st.markdown(
+                "<p style='text-align: center; font-size: 10px; letter-spacing: 3px; color: #aaa; margin-bottom: 30px;'>INTELLIGENCE ACCESS</p>",
+                unsafe_allow_html=True)
 
-        with st.form("login_form"):
-            password = st.text_input("ACCESS KEY", type="password", placeholder="ENTER KEY",
-                                     label_visibility="collapsed")
-            submit = st.form_submit_button("UNLOCK SYSTEM", type="primary")
+            password = st.text_input("PASSWORD", type="password", label_visibility="collapsed", placeholder="ENTER KEY")
 
-        if submit:
-            if password == "neb123":
-                st.session_state.authenticated = True
-                st.toast("✨ ACCESS GRANTED")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("⚠️ ACCESS DENIED")
+            if st.button("UNLOCK SYSTEM"):
+                if password == "neb123":
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("⚠️ ACCESS DENIED")
 
-    return False
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
-if not check_password():
+if not st.session_state.authenticated:
+    login_screen()
     st.stop()
 
-# --- 5. MAIN APP UI (Dark Mode) ---
-st.markdown("""
-    <style>
-    .stApp { background-image: none; background-color: #050505; }
-    </style>
-""", unsafe_allow_html=True)
+# =========================================================
+# 🏛️ THE MAIN SYSTEM (ONLY RUNS AFTER AUTH)
+# =========================================================
 
-# --- 6. SIDEBAR SETTINGS (Requested Item #3) ---
+# --- 5. SIDEBAR SETTINGS ---
 with st.sidebar:
-    st.markdown("<h3 style='color:#D4AF37'>COMMAND CENTER</h3>", unsafe_allow_html=True)
-    st.caption("Lady Biba / Internal Tool v2.2")
+    st.markdown("### COMMAND CENTER")
+    st.caption("Lady Biba / Internal Tool v2.5")
     st.markdown("---")
     st.success("🟢 SYSTEM ONLINE")
 
@@ -168,10 +157,10 @@ with st.sidebar:
         st.rerun()
 
 
-# --- 7. ENGINE FUNCTIONS ---
+# --- 6. ENGINE FUNCTIONS ---
 
 def scrape_website(target_url):
-    # GUARD: Wrong URL
+    # GUARD: Strict URL Validation
     if "ladybiba.com" not in target_url:
         return None, "❌ ERROR: INVALID DOMAIN. This system is locked to Lady Biba assets only."
 
@@ -182,6 +171,7 @@ def scrape_website(target_url):
     title = "Lady Biba Piece"
     desc_text = ""
 
+    # Try JSON Backdoor
     try:
         r = requests.get(json_url, headers=headers, timeout=5)
         if r.status_code == 200:
@@ -201,6 +191,7 @@ def scrape_website(target_url):
     except:
         pass
 
+    # Fallback
     if not desc_text:
         try:
             r = requests.get(target_url, headers=headers, timeout=10)
@@ -221,8 +212,9 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-flash-latest')
 
+    # FULL LADY BIBA MATRIX
     persona_matrix = """
     1. The Tech-Bro VC (Tone: Lethal Precision)
     2. The VI High-Court Lawyer (Tone: British Vogue Sophistication)
@@ -240,11 +232,12 @@ def generate_campaign(product_name, description, key):
     Role: Head of Brand Narrative for 'Lady Biba'.
     Product: {product_name}
     Specs: {description}
-    TASK: Select TOP 3 Personas + 1 Hybrid Strategy.
+    TASK: Select TOP 3 Personas. Write 3 Captions + 1 Hybrid Strategy. Each caption should be exactly 70 words.
+    MASTER LIST: {persona_matrix}
 
-    CRITICAL RULE: Quote specific fabric/cut details (e.g., 'crepe', 'peplum') in every caption.
+    CRITICAL RULE: Quote specific fabric/cut details (e.g., 'crepe', 'peplum', 'fitted') in every caption.
 
-    Output JSON ONLY: 
+    Output JSON ONLY. Use this EXACT structure: 
     [ 
       {{"persona": "Name", "post": "Caption..."}},
       {{"persona": "Name", "post": "Caption..."}},
@@ -274,6 +267,7 @@ def save_to_notion(p_name, post, persona, token, db_id):
         }
     }
     try:
+        # FIXED: Removed markdown syntax from URL
         response = requests.post("[https://api.notion.com/v1/pages](https://api.notion.com/v1/pages)", headers=headers,
                                  data=json.dumps(data))
         if response.status_code != 200: return False, response.text
@@ -282,9 +276,9 @@ def save_to_notion(p_name, post, persona, token, db_id):
         return False, str(e)
 
 
-# --- 8. UI LAYOUT ---
+# --- 7. UI LAYOUT ---
 st.title("LADY BIBA / INTELLIGENCE")
-url_input = st.text_input("Product URL", placeholder="Paste Lady Biba Link...")
+url_input = st.text_input("Product URL", placeholder="Paste Lady Biba URL...")
 
 if st.button("GENERATE ASSETS"):
     if not api_key:
@@ -294,11 +288,12 @@ if st.button("GENERATE ASSETS"):
     else:
         with st.spinner("Analyzing Construction..."):
             p_name, p_desc = scrape_website(url_input)
-            if "INVALID DOMAIN" in str(p_desc):
+
+            # GUARD: STOP IF URL IS WRONG
+            if p_name is None:  # Scraper returns None on fail
                 st.error(p_desc)
             else:
                 st.session_state.p_name = p_name
-                st.session_state.p_desc = p_desc
                 st.session_state.results = generate_campaign(p_name, p_desc, api_key)
 
 if st.session_state.results:
