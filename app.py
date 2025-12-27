@@ -268,8 +268,7 @@ def save_to_notion(p_name, post, persona, token, db_id):
     }
     try:
         # === CRITICAL FIX: REMOVED MARKDOWN BRACKETS ===
-        response = requests.post("[https://api.notion.com/v1/pages](https://api.notion.com/v1/pages)", headers=headers,
-                                 data=json.dumps(data))
+        response = requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(data))
         if response.status_code != 200: return False, response.text
         return True, "Success"
     except Exception as e:
