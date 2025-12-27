@@ -1,6 +1,6 @@
 import streamlit as st
 import time
-# IMPORT THE BRAIN
+# IMPORT THE BRAIN (logic.py)
 import logic
 
 # --- 1. CONFIGURATION ---
@@ -11,37 +11,98 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. LUXURY CSS ENGINE ---
+# --- 2. LUXURY CSS ENGINE (RESTORED & FIXED) ---
 st.markdown("""
     <style>
     /* IMPORT FONTS */
-    @import url('[https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@200;300;400;600&display=swap](https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@200;300;400;600&display=swap)');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@200;300;400;600&display=swap');
 
-    /* GLOBAL RESET - SAFE MODE */
-    .stApp { background-color: #050505; font-family: 'Montserrat', sans-serif !important; }
-    h1, h2, h3, h4, h5, h6, p, div, span, button, input, label, textarea { font-family: 'Montserrat', sans-serif; }
-    h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif !important; letter-spacing: 1px; color: #F0F0F0; }
+    /* GLOBAL RESET - THE NUCLEAR OPTION */
+    /* This forces Montserrat on EVERYTHING, restoring the luxury feel */
+    * { 
+        font-family: 'Montserrat', sans-serif !important; 
+    }
 
-    /* UI ELEMENTS */
+    /* EXCEPTION: Fix Streamlit Icons (prevent 'keyboard_arrow_down' glitch) */
+    /* We tell the browser to ignore Montserrat for specific icon containers */
+    div[data-testid="stExpander"] details summary span, 
+    div[data-testid="stExpander"] details summary svg {
+        font-family: "Source Sans Pro", sans-serif !important;
+    }
+
+    /* HEADINGS - SERIF & SHARP */
+    h1, h2, h3, h4 { 
+        font-family: 'Cormorant Garamond', serif !important; 
+        letter-spacing: 1px; 
+        color: #F0F0F0; 
+    }
+
+    /* APP BACKGROUND */
+    .stApp { background-color: #050505; }
+
+    /* AUTH SCREEN CARD */
     .auth-card {
-        background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-        border: 1px solid #D4AF37; padding: 50px; text-align: center; border-radius: 0px;
+        background: rgba(20, 20, 20, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid #D4AF37;
+        padding: 50px;
+        text-align: center;
+        border-radius: 0px;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
+
+    /* BUTTONS: TACTILE & ANIMATED */
     div.stButton > button {
-        width: 100%; background-color: transparent; color: #D4AF37; border: 1px solid #D4AF37;
-        padding: 12px 24px; text-transform: uppercase; font-weight: 600; letter-spacing: 2px;
-        transition: all 0.3s; border-radius: 0px;
-    }
-    div.stButton > button:hover { background-color: #D4AF37; color: #050505; transform: translateY(-2px); }
-    div[data-baseweb="input"] > div, textarea {
-        background-color: #0a0a0a !important; border: 1px solid #333 !important; color: #D4AF37 !important; border-radius: 0px;
+        width: 100%;
+        background-color: transparent;
+        color: #D4AF37;
+        border: 1px solid #D4AF37;
+        padding: 12px 24px;
+        font-family: 'Montserrat', sans-serif;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 2px;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        border-radius: 0px;
     }
 
-    /* LAYOUT FIXES */
-    .streamlit-expanderHeader { background-color: #111 !important; color: #D4AF37 !important; border: 1px solid #333; }
-    [data-testid="stSidebar"] { background-color: #080808; border-right: 1px solid #222; }
-    #MainMenu, footer, header {visibility: hidden;}
+    div.stButton > button:hover {
+        background-color: #D4AF37;
+        color: #050505;
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 10px 20px rgba(212, 175, 55, 0.2);
+    }
+
+    div.stButton > button:active { transform: scale(0.98); }
+
+    /* INPUT FIELDS - GOLD & BLACK */
+    div[data-baseweb="input"] > div, textarea {
+        background-color: #0a0a0a !important;
+        border: 1px solid #333 !important;
+        color: #D4AF37 !important;
+        text-align: center;
+        border-radius: 0px;
+    }
+
+    /* MANUAL EXPANDER HEADER */
+    .streamlit-expanderHeader {
+        background-color: #111 !important;
+        color: #D4AF37 !important;
+        border: 1px solid #333;
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* SIDEBAR */
+    [data-testid="stSidebar"] {
+        background-color: #080808;
+        border-right: 1px solid #222;
+    }
+
+    /* HIDE JUNK */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -58,7 +119,7 @@ notion_db_id = st.secrets.get("NOTION_DB_ID")
 # --- 4. AUTH LOGIC ---
 if not st.session_state.authenticated:
     st.markdown(
-        """<style>.stApp {background-image: url("[https://images.unsplash.com/photo-1550614000-4b9519e02d48?q=80&w=2070&auto=format&fit=crop](https://images.unsplash.com/photo-1550614000-4b9519e02d48?q=80&w=2070&auto=format&fit=crop)"); background-size: cover;}</style>""",
+        """<style>.stApp {background-image: url("https://images.unsplash.com/photo-1550614000-4b9519e02d48?q=80&w=2070&auto=format&fit=crop"); background-size: cover;}</style>""",
         unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
@@ -80,7 +141,7 @@ if not st.session_state.authenticated:
 # --- 5. MAIN SYSTEM ---
 with st.sidebar:
     st.markdown("### COMMAND CENTER")
-    st.caption("Lady Biba / Internal Tool v3.0 (Refactored)")
+    st.caption("Lady Biba / Internal Tool v3.1 (Luxury)")
     st.markdown("---")
     if st.button("🔄 FORCE RESET"): st.session_state.clear(); st.rerun()
 
