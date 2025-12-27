@@ -2,10 +2,9 @@ import streamlit as st
 import os
 import requests
 import json
-import re
+import time
 from bs4 import BeautifulSoup
 import google.generativeai as genai
-import time
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
@@ -15,176 +14,166 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. THE VISUAL ENGINE (CSS OVERHAUL) ---
-# This block aggressively overrides Streamlit's defaults to create the "Luxury" feel.
+# --- 2. CSS ARCHITECTURE (THE LUXURY ENGINE) ---
 st.markdown("""
     <style>
-    /* IMPORT FONTS: Cormorant (Serif) for Luxury, Montserrat (Sans) for Modernity */
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@200;300;400;600&display=swap');
+    /* IMPORT FONTS */
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@200;300;400;600&display=swap');
 
-    /* GLOBAL TYPOGRAPHY FORCE */
-    html, body, [class*="css"] {
-        font-family: 'Montserrat', sans-serif;
-    }
+    /* GLOBAL RESET */
+    * { font-family: 'Montserrat', sans-serif !important; }
+    h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif !important; letter-spacing: 1px; }
 
-    h1, h2, h3 {
-        font-family: 'Cormorant Garamond', serif !important;
-        font-weight: 400 !important;
-        letter-spacing: 1px !important;
-        color: #F5F5F5 !important;
-    }
+    /* REMOVE DEFAULT PADDING */
+    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
+    header { visibility: hidden; }
+    footer { visibility: hidden; }
 
-    /* BACKGROUND OVERRIDE */
-    .stApp {
-        background-color: #050505; /* Deepest Black */
-    }
-
-    /* BUTTONS: THE "FEEL" UPGRADE */
-    /* We target the specific Streamlit button class */
-    div[data-testid="stBaseButton-secondary"] > button {
-        width: 100%;
-        background-color: transparent;
-        color: #D4AF37; /* Gold */
+    /* AUTH SCREEN STYLING (Only applies when .stApp has the background image) */
+    div[data-testid="stForm"] {
+        background: rgba(20, 20, 20, 0.7);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
         border: 1px solid #D4AF37;
-        padding: 12px 24px;
-        font-family: 'Montserrat', sans-serif;
+        padding: 40px;
+        border-radius: 0px; /* Sharp luxury corners */
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    /* BUTTON STYLING & ANIMATION */
+    button {
+        border-radius: 0px !important;
+        transition: all 0.3s ease !important;
         text-transform: uppercase;
         letter-spacing: 2px;
-        font-size: 12px;
-        transition: all 0.3s ease-in-out;
-        border-radius: 0px;
+        font-weight: 600;
     }
 
+    /* Secondary Button (The "Generate" buttons) */
+    div[data-testid="stBaseButton-secondary"] > button {
+        background-color: transparent;
+        color: #D4AF37;
+        border: 1px solid #D4AF37;
+    }
     div[data-testid="stBaseButton-secondary"] > button:hover {
         background-color: #D4AF37;
         color: #000;
-        transform: scale(1.02); /* This is the animation you wanted */
-        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+        transform: scale(1.03);
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
     }
 
-    div[data-testid="stBaseButton-secondary"] > button:active {
-        transform: scale(0.98);
+    /* Primary Button (The "Login" button) */
+    div[data-testid="stBaseButton-primary"] > button {
+        background-color: #D4AF37;
+        color: #000;
+        border: none;
     }
-
-    /* AUTHENTICATION OVERLAY (GLASSMORPHISM) */
-    /* This creates the blurred layer on top of everything */
-    .auth-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.85);
-        backdrop-filter: blur(15px);
-        z-index: 9998;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .auth-box {
-        background: rgba(20, 20, 20, 0.6);
-        border: 1px solid #333;
-        padding: 50px;
-        width: 400px;
-        text-align: center;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        animation: slideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-
-    @keyframes slideUp {
-        from { opacity: 0; transform: translateY(50px); }
-        to { opacity: 1; transform: translateY(0); }
+    div[data-testid="stBaseButton-primary"] > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
     }
 
     /* INPUT FIELDS */
-    .stTextInput > div > div > input {
-        background-color: #0F0F0F;
-        color: #D4AF37;
+    div[data-baseweb="input"] > div {
+        background-color: #050505;
         border: 1px solid #333;
-        text-align: center;
-        font-family: 'Montserrat', sans-serif;
+        color: white;
     }
 
-    /* SIDEBAR */
-    [data-testid="stSidebar"] {
-        background-color: #0a0a0a;
-        border-right: 1px solid #222;
+    /* TOASTS */
+    div[data-baseweb="toast"] {
+        background-color: #111;
+        border: 1px solid #D4AF37;
+        color: #D4AF37;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. THE VELVET ROPE (AUTH) ---
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
+# --- 3. SESSION STATE & SECRETS ---
+if "authenticated" not in st.session_state: st.session_state.authenticated = False
+if "results" not in st.session_state: st.session_state.results = None
+if "p_name" not in st.session_state: st.session_state.p_name = ""
+if "p_desc" not in st.session_state: st.session_state.p_desc = ""
+
+api_key = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else None
+notion_token = st.secrets.get("NOTION_TOKEN")
+notion_db_id = st.secrets.get("NOTION_DB_ID")
 
 
+# --- 4. AUTHENTICATION LOGIC ---
 def check_password():
     if st.session_state.authenticated:
         return True
 
-    # This container sits ON TOP of the app due to the CSS z-index
-    placeholder = st.empty()
-    with placeholder.container():
-        st.markdown('<div class="auth-overlay">', unsafe_allow_html=True)
+    # BACKGROUND IMAGE FOR LOGIN SCREEN ONLY
+    st.markdown("""
+        <style>
+        .stApp {
+            background-image: url("https://images.unsplash.com/photo-1550614000-4b9519e02d48?q=80&w=2070&auto=format&fit=crop");
+            background-size: cover;
+            background-position: center;
+        }
+        .stApp::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); z-index: -1;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-        # We use standard columns to center the login box inside the overlay
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col2:
-            st.markdown("<br><br><br><br><br>", unsafe_allow_html=True)  # Spacer
-            st.markdown("<h1 style='text-align: center; color: #D4AF37;'>LADY BIBA</h1>", unsafe_allow_html=True)
-            st.markdown(
-                "<p style='text-align: center; letter-spacing: 3px; font-size: 10px; color: #666;'>INTELLIGENCE ACCESS</p>",
-                unsafe_allow_html=True)
+    # CENTERED LOGIN CARD
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        st.markdown("<br><br><br>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #D4AF37;'>LADY BIBA</h1>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='text-align: center; letter-spacing: 3px; font-size: 12px; color: #ccc; margin-bottom: 20px;'>INTELLIGENCE ACCESS</p>",
+            unsafe_allow_html=True)
 
-            password = st.text_input("PASSWORD", type="password", label_visibility="collapsed",
-                                     placeholder="ENTER ACCESS KEY")
+        with st.form("login_form"):
+            password = st.text_input("ACCESS KEY", type="password", placeholder="ENTER KEY",
+                                     label_visibility="collapsed")
+            submit = st.form_submit_button("UNLOCK SYSTEM", type="primary")
 
-            if st.button("UNLOCK SYSTEM"):
-                if password == "neb123":
-                    st.session_state.authenticated = True
-                    st.toast("ACCESS GRANTED")
-                    time.sleep(0.5)
-                    st.rerun()
-                else:
-                    st.error("INVALID CREDENTIALS")
+        if submit:
+            if password == "neb123":
+                st.session_state.authenticated = True
+                st.toast("✨ ACCESS GRANTED")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("⚠️ ACCESS DENIED")
 
-        st.markdown('</div>', unsafe_allow_html=True)
     return False
 
 
 if not check_password():
     st.stop()
 
-# --- 4. SECRETS ---
-api_key = None
-notion_token = None
-notion_db_id = None
+# --- 5. MAIN APP UI (Dark Mode) ---
+st.markdown("""
+    <style>
+    .stApp { background-image: none; background-color: #050505; }
+    </style>
+""", unsafe_allow_html=True)
 
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
-    notion_token = st.secrets.get("NOTION_TOKEN")
-    notion_db_id = st.secrets.get("NOTION_DB_ID")
-else:
-    st.error("🚨 CRITICAL: Secrets file not found.")
-
-# --- 5. SIDEBAR SETTINGS ---
+# --- 6. SIDEBAR SETTINGS (Requested Item #3) ---
 with st.sidebar:
-    st.markdown("### SETTINGS")
-    st.caption("Lady Biba / Intelligence v2.1")
-    if st.button("FORCE SYSTEM RESET"):
+    st.markdown("<h3 style='color:#D4AF37'>COMMAND CENTER</h3>", unsafe_allow_html=True)
+    st.caption("Lady Biba / Internal Tool v2.2")
+    st.markdown("---")
+    st.success("🟢 SYSTEM ONLINE")
+
+    if st.button("🔄 FORCE RESET"):
         st.session_state.clear()
         st.rerun()
-    st.divider()
-    st.success("AUTHENTICATED")
 
 
-# --- 6. ENGINE FUNCTIONS ---
+# --- 7. ENGINE FUNCTIONS ---
 
 def scrape_website(target_url):
-    # --- GUARD: WRONG URL DETECTION ---
+    # GUARD: Wrong URL
     if "ladybiba.com" not in target_url:
-        return None, "❌ ERROR: This URL belongs to another domain. Access restricted to Lady Biba assets only."
+        return None, "❌ ERROR: INVALID DOMAIN. This system is locked to Lady Biba assets only."
 
     headers = {'User-Agent': 'Mozilla/5.0'}
     clean_url = target_url.split('?')[0]
@@ -205,8 +194,7 @@ def scrape_website(target_url):
             clean_lines = []
             for line in raw_text.split('\n'):
                 upper = line.upper()
-                if any(x in upper for x in
-                       ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING", "RETURN"]):
+                if any(x in upper for x in ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING"]):
                     continue
                 if len(line) > 5: clean_lines.append(line)
             desc_text = "\n".join(clean_lines)
@@ -252,10 +240,9 @@ def generate_campaign(product_name, description, key):
     Role: Head of Brand Narrative for 'Lady Biba'.
     Product: {product_name}
     Specs: {description}
-    TASK: Select TOP 3 Personas. Write 3 Captions + 1 Hybrid Strategy.
-    MASTER LIST: {persona_matrix}
+    TASK: Select TOP 3 Personas + 1 Hybrid Strategy.
 
-    CRITICAL RULE: You MUST quote specific fabric/cut/fit details from the Specs (e.g., 'crepe', 'peplum', 'fitted') in every caption.
+    CRITICAL RULE: Quote specific fabric/cut details (e.g., 'crepe', 'peplum') in every caption.
 
     Output JSON ONLY: 
     [ 
@@ -295,12 +282,9 @@ def save_to_notion(p_name, post, persona, token, db_id):
         return False, str(e)
 
 
-# --- 7. MAIN UI LAYOUT ---
-if "results" not in st.session_state: st.session_state.results = None
-if "p_name" not in st.session_state: st.session_state.p_name = ""
-
+# --- 8. UI LAYOUT ---
 st.title("LADY BIBA / INTELLIGENCE")
-url_input = st.text_input("Product URL", placeholder="Paste Lady Biba URL...", label_visibility="collapsed")
+url_input = st.text_input("Product URL", placeholder="Paste Lady Biba Link...")
 
 if st.button("GENERATE ASSETS"):
     if not api_key:
@@ -310,12 +294,11 @@ if st.button("GENERATE ASSETS"):
     else:
         with st.spinner("Analyzing Construction..."):
             p_name, p_desc = scrape_website(url_input)
-
-            # GUARD: STOP IF URL IS WRONG
-            if "INVALID URL" in str(p_desc):
+            if "INVALID DOMAIN" in str(p_desc):
                 st.error(p_desc)
             else:
                 st.session_state.p_name = p_name
+                st.session_state.p_desc = p_desc
                 st.session_state.results = generate_campaign(p_name, p_desc, api_key)
 
 if st.session_state.results:
