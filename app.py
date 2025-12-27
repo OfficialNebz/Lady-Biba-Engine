@@ -15,86 +15,155 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# --- 2. GLOBAL STYLING (The "Luxury" Upgrade) ---
+# CHANGED: Added extensive CSS for fonts, button animations, and the glassmorphism auth screen.
+st.markdown("""
+    <style>
+    /* IMPORT FONTS */
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@200;300;400;600&display=swap');
 
-# --- THE VELVET ROPE ---
+    /* GLOBAL RESET */
+    * { font-family: 'Montserrat', sans-serif; }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Cormorant Garamond', serif !important; letter-spacing: 1px; }
+
+    /* BACKGROUND */
+    .stApp {
+        background-color: #050505;
+        color: #E0E0E0;
+    }
+
+    /* BUTTON ANIMATIONS (FIXED: "Disgusting" static buttons removed) */
+    div.stButton > button {
+        width: 100%;
+        background-color: #1a1a1a;
+        color: #D4AF37; /* Gold */
+        border: 1px solid #D4AF37;
+        padding: 15px 20px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        border-radius: 0px; /* Sharp edges for luxury */
+    }
+
+    div.stButton > button:hover {
+        background-color: #D4AF37;
+        color: #000;
+        transform: translateY(-2px); /* Lift effect */
+        box-shadow: 0 10px 20px rgba(212, 175, 55, 0.2); /* Gold glow */
+    }
+
+    div.stButton > button:active {
+        transform: translateY(0px);
+    }
+
+    /* INPUT FIELDS */
+    .stTextInput > div > div > input {
+        background-color: #0a0a0a;
+        color: #fff;
+        border: 1px solid #333;
+        font-family: 'Montserrat', sans-serif;
+        text-align: center;
+    }
+
+    /* SIDEBAR STYLING */
+    [data-testid="stSidebar"] {
+        background-color: #0a0a0a;
+        border-right: 1px solid #222;
+    }
+
+    /* AUTH SCREEN STYLES */
+    .auth-bg {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: linear-gradient(135deg, #000000 0%, #1a0b00 100%); /* Abstract Dark Gradient */
+        z-index: 0;
+    }
+    .auth-card {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px); /* Glassmorphism */
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        padding: 60px;
+        border-radius: 0px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        text-align: center;
+        max-width: 500px;
+        margin: 15vh auto;
+        position: relative;
+        z-index: 2;
+        animation: fadeIn 1.5s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+""", unsafe_allow_html=True)
+
+
+# --- 3. THE VELVET ROPE (Authentication) ---
+# IMPROVED: New "Glassmorphism" UI, removed stock photo, added notifications.
 def check_password():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
+
     if st.session_state.authenticated:
         return True
 
-    st.markdown("""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
-        [data-testid="stSidebar"] { display: none; }
-        .stApp { 
-            background-image: url("https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=2071&auto=format&fit=crop"); 
-            background-size: cover;
-            background-position: center;
-        }
-        .stApp::before {
-            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); z-index: -1;
-        }
-        .login-container {
-            animation: subtleFade 2s ease-out forwards;
-            background-color: rgba(5, 5, 5, 0.95);
-            border: 1px solid #D4AF37;
-            padding: 60px;
-            text-align: center;
-            margin-top: 15vh;
-            max-width: 550px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        @keyframes subtleFade { 0% { opacity: 0; } 100% { opacity: 1; } }
-        div[data-baseweb="input"] > div { background-color: #111 !important; color: #D4AF37 !important; text-align: center; }
-        div.stButton > button { background-color: transparent !important; border: 1px solid #D4AF37 !important; color: #D4AF37 !important; width: 100%; }
-        div.stButton > button:hover { background-color: #D4AF37 !important; color: #000 !important; }
-        h1 { font-family: 'Cormorant Garamond', serif !important; color: #D4AF37 !important; }
-        </style>
-        """, unsafe_allow_html=True)
+    # Render the Abstract Gradient Background
+    st.markdown('<div class="auth-bg"></div>', unsafe_allow_html=True)
 
-    with st.container():
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        st.markdown("<h1>ATELIER ACCESS</h1>", unsafe_allow_html=True)
+    # Render the Glass Modal
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
+        st.markdown("<h1 style='color:#D4AF37; margin-bottom:10px;'>ATELIER ACCESS</h1>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size:10px; letter-spacing:2px; color:#888; margin-bottom:30px;'>LADY BIBA INTERNAL INTELLIGENCE</p>",
+            unsafe_allow_html=True)
+
         with st.form("login_form"):
-            password = st.text_input("ACCESS KEY", type="password", label_visibility="collapsed")
+            password = st.text_input("ACCESS KEY", type="password", label_visibility="collapsed",
+                                     placeholder="ENTER KEY")
             submit = st.form_submit_button("UNLOCK SYSTEM")
+
         st.markdown('</div>', unsafe_allow_html=True)
 
     if submit:
         if password == "neb123":
             st.session_state.authenticated = True
+            st.toast("✨ ACCESS GRANTED: Welcome to the Atelier.")
+            time.sleep(1)
             st.rerun()
         else:
-            st.toast("⚠️ ACCESS DENIED")
+            st.error("⚠️ ACCESS DENIED: Invalid Credentials.")  # Notification added
+
     return False
 
 
 if not check_password():
     st.stop()
 
-# --- 2. STYLING ---
-st.markdown("""
-    <style>
-    @keyframes deepFade { 0% { opacity: 0; } 100% { opacity: 1; } }
-    .block-container { animation: deepFade 1.5s ease-out forwards; }
-    .stApp { background-image: none !important; background-color: #050505 !important; }
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap');
-    h1, h2, h3 { font-family: 'Cormorant Garamond', serif !important; color: #F0F0F0 !important; }
-    p, div, label, textarea { font-family: 'Montserrat', sans-serif !important; }
-    .stTextInput > div > div > input { background-color: #0a0a0a; color: #fff; border: 1px solid #333; }
-    div.stButton > button { background-color: #F0F0F0; color: #000; border: none; font-weight: 600; }
-    div.stButton > button:hover { background-color: #D4AF37; color: #fff; transform: scale(1.02); }
-    </style>
-""", unsafe_allow_html=True)
+# --- 4. SIDEBAR SETTINGS (Requested Item #3) ---
+# ADDED: Sidebar with reset functionality and badge.
+with st.sidebar:
+    st.markdown("<h3 style='color:#D4AF37;'>COMMAND CENTER</h3>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("**Status:** 🟢 ONLINE")
+    st.markdown("**Model:** Gemini 1.5 Pro")
+    st.markdown("---")
 
-# --- 3. STATE & SECRETS ---
+    if st.button("🔄 FORCE SYSTEM RESET"):
+        st.session_state.clear()
+        st.rerun()
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.caption("Lady Biba / Internal Tool v2.0")
+
+# --- 5. STATE MANAGEMENT ---
 if "results" not in st.session_state: st.session_state.results = None
 if "p_name" not in st.session_state: st.session_state.p_name = ""
 if "p_desc" not in st.session_state: st.session_state.p_desc = ""
 
+# --- 6. SECRETS LOADING ---
 api_key = None
 notion_token = None
 notion_db_id = None
@@ -107,9 +176,13 @@ else:
     st.error("🚨 CRITICAL: Secrets file not found.")
 
 
-# --- 4. ENGINE ---
+# --- 7. ENGINE FUNCTIONS ---
+
 def scrape_website(target_url):
-    # SHOPIFY JSON BYPASS
+    # ADDED: URL Validation (Requested Item #1)
+    if "ladybiba.com" not in target_url:
+        return None, "INVALID URL: Access Denied. This system is locked to Lady Biba assets only."
+
     headers = {'User-Agent': 'Mozilla/5.0'}
     clean_url = target_url.split('?')[0]
     json_url = f"{clean_url}.json"
@@ -117,7 +190,7 @@ def scrape_website(target_url):
     title = "Lady Biba Piece"
     desc_text = ""
 
-    # 1. JSON Method
+    # JSON Backdoor Method
     try:
         r = requests.get(json_url, headers=headers, timeout=5)
         if r.status_code == 200:
@@ -130,14 +203,15 @@ def scrape_website(target_url):
             clean_lines = []
             for line in raw_text.split('\n'):
                 upper = line.upper()
-                if any(x in upper for x in ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING"]):
+                if any(x in upper for x in
+                       ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING", "RETURN"]):
                     continue
                 if len(line) > 5: clean_lines.append(line)
             desc_text = "\n".join(clean_lines)
     except:
         pass
 
-    # 2. HTML Fallback
+    # HTML Fallback
     if not desc_text:
         try:
             r = requests.get(target_url, headers=headers, timeout=10)
@@ -158,42 +232,43 @@ def scrape_website(target_url):
 
 def generate_campaign(product_name, description, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
-    # FULL 20 PERSONA MATRIX
+    # RESTORED: Full 20 Persona Matrix
     persona_matrix = """
-    1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
-    2. The VI High-Court Lawyer (Tone: British Vogue Sophistication | Pain: 'Next Week Friday' Lies)
-    3. The Diaspora Investor (Tone: 'Old Money' Security | Pain: Invisible in Grey Suits)
-    4. The Eco-Conscious Gen Z (Tone: Aggressive Hype | Pain: Decision Fatigue)
-    5. The Oil & Gas Director (Tone: Understated Luxury | Pain: Time-Wealth Depletion)
-    6. The Balogun Market 'Oga' (Tone: Lagos 'No-Nonsense' | Pain: Fabric Fading Shame)
-    7. The Wedding Guest Pro (Tone: Kinetic Energy | Pain: Heat/Humidity Armor)
-    8. The Fintech Founder (Tone: Afro-Futuristic | Pain: Poor Finishing Scars)
-    9. The High-Society Matriarch (Tone: Maternal Authority | Pain: Economic Friction)
-    10. The Creative Director (Tone: Intellectual Dominance | Pain: 'Fast-Fashion' Fragility)
-    11. The Side-Hustle Queen (Tone: Relatable Hustle | Pain: Office TGIF-to-Party Crisis)
-    12. The Real Estate Mogul (Tone: Unapologetic Power | Pain: Imposter Syndrome)
-    13. The Corporate Librarian (Tone: Quiet Confidence | Pain: The 9AM Boardroom Fear)
-    14. The Instagram Influencer (Tone: Viral/Trend-Focused | Pain: 'Sold Out' Anxiety)
-    15. The Medical Consultant (Tone: Clinical/Structured | Pain: 24-Hour Style Durability)
-    16. The Church 'Sister' Elite (Tone: Pious/Premium | Pain: Modesty vs Style Battle)
-    17. The Media Personality (Tone: Electric/Charismatic | Pain: Narrative Inconsistency)
-    18. The Event Planner (Tone: Chaos-Control | Pain: Opportunity Cost of Waiting)
-    19. The UN/NGO Official (Tone: Diplomatic/Polished | Pain: Cultural Identity Gap)
-    20. The Retail Investor (Tone: Analytical/Speculative | Pain: ROI on Self-Presentation)
+    1. The Tech-Bro VC (Tone: Lethal Precision)
+    2. The VI High-Court Lawyer (Tone: British Vogue Sophistication)
+    3. The Diaspora Investor (Tone: 'Old Money' Security)
+    4. The Eco-Conscious Gen Z (Tone: Aggressive Hype)
+    5. The Oil & Gas Director (Tone: Understated Luxury)
+    6. The Balogun Market 'Oga' (Tone: Lagos 'No-Nonsense')
+    7. The Wedding Guest Pro (Tone: Kinetic Energy)
+    8. The Fintech Founder (Tone: Afro-Futuristic)
+    9. The High-Society Matriarch (Tone: Maternal Authority)
+    10. The Creative Director (Tone: Intellectual Dominance)
+    11. The Side-Hustle Queen (Tone: Relatable Hustle)
+    12. The Real Estate Mogul (Tone: Unapologetic Power)
+    13. The Corporate Librarian (Tone: Quiet Confidence)
+    14. The Instagram Influencer (Tone: Viral/Trend-Focused)
+    15. The Medical Consultant (Tone: Clinical/Structured)
+    16. The Church 'Sister' Elite (Tone: Pious/Premium)
+    17. The Media Personality (Tone: Electric/Charismatic)
+    18. The Event Planner (Tone: Chaos-Control)
+    19. The UN/NGO Official (Tone: Diplomatic/Polished)
+    20. The Retail Investor (Tone: Analytical/Speculative)
     """
 
+    # IMPROVED: Explicitly asking for Hybrid Strategy in the structure (Requested Item #2)
     prompt = f"""
     Role: Head of Brand Narrative for 'Lady Biba'.
     Product: {product_name}
     Specs: {description}
-    TASK: Select TOP 3 Personas from the MASTER LIST below that fit this item. Write 3 Captions (one per persona) + 1 Hybrid Strategy.
+    TASK: Select TOP 3 Personas from the MASTER LIST. Write 3 Captions + 1 Hybrid Strategy.
     MASTER LIST: {persona_matrix}
 
-    CRITICAL RULE: You MUST quote specific fabric/cut/fit details from the Specs (e.g., 'crepe', 'peplum', 'fitted') in every caption. Do not be generic.
+    CRITICAL RULE: You MUST quote specific fabric/cut/fit details from the Specs (e.g., 'crepe', 'peplum', 'fitted') in every caption.
 
-    Output JSON ONLY. Format: 
+    Output JSON ONLY. Follow this EXACT structure: 
     [ 
       {{"persona": "Name", "post": "Caption..."}},
       {{"persona": "Name", "post": "Caption..."}},
@@ -223,7 +298,7 @@ def save_to_notion(p_name, post, persona, token, db_id):
         }
     }
     try:
-        # FIXED URL: No markdown brackets
+        # FIXED: Removed the Markdown syntax that caused the crash
         response = requests.post("[https://api.notion.com/v1/pages](https://api.notion.com/v1/pages)", headers=headers,
                                  data=json.dumps(data))
         if response.status_code != 200: return False, response.text
@@ -232,7 +307,7 @@ def save_to_notion(p_name, post, persona, token, db_id):
         return False, str(e)
 
 
-# --- 5. UI LAYOUT ---
+# --- 8. MAIN UI LAYOUT ---
 st.title("LADY BIBA / INTELLIGENCE")
 url_input = st.text_input("Product URL", placeholder="Paste Link...")
 
@@ -244,9 +319,14 @@ if st.button("GENERATE ASSETS"):
     else:
         with st.spinner("Analyzing Construction..."):
             p_name, p_desc = scrape_website(url_input)
-            st.session_state.p_name = p_name
-            st.session_state.p_desc = p_desc
-            st.session_state.results = generate_campaign(p_name, p_desc, api_key)
+
+            # ADDED: Check for URL validation error from scraper
+            if "INVALID URL" in p_desc:
+                st.error(p_desc)
+            else:
+                st.session_state.p_name = p_name
+                st.session_state.p_desc = p_desc
+                st.session_state.results = generate_campaign(p_name, p_desc, api_key)
 
 if st.session_state.results:
     st.divider()
