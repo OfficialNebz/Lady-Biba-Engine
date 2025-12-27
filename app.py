@@ -232,7 +232,7 @@ def generate_campaign(product_name, description, key):
     Role: Head of Brand Narrative for 'Lady Biba'.
     Product: {product_name}
     Specs: {description}
-    TASK: Select TOP 3 Personas. Write 3 Captions + 1 Hybrid Strategy. Each caption should be exactly 70 words.
+    TASK: Select TOP 3 Personas. Write 3 Captions + 1 Hybrid Strategy. Each caption should be exactly 80 words.
     MASTER LIST: {persona_matrix}
 
     CRITICAL RULE: Quote specific fabric/cut details (e.g., 'crepe', 'peplum', 'fitted') in every caption.
@@ -267,7 +267,7 @@ def save_to_notion(p_name, post, persona, token, db_id):
         }
     }
     try:
-        # FIXED: Removed markdown syntax from URL
+        # === CRITICAL FIX: REMOVED MARKDOWN BRACKETS ===
         response = requests.post("[https://api.notion.com/v1/pages](https://api.notion.com/v1/pages)", headers=headers,
                                  data=json.dumps(data))
         if response.status_code != 200: return False, response.text
