@@ -109,7 +109,7 @@ else:
 
 # --- 4. ENGINE ---
 def scrape_website(target_url):
-    # SHOPIFY JSON BYPASS (The Skeleton Key)
+    # SHOPIFY JSON BYPASS
     headers = {'User-Agent': 'Mozilla/5.0'}
     clean_url = target_url.split('?')[0]
     json_url = f"{clean_url}.json"
@@ -117,48 +117,37 @@ def scrape_website(target_url):
     title = "Lady Biba Piece"
     desc_text = ""
 
-    # 1. Try JSON Method (Best for Description)
+    # 1. JSON Method
     try:
         r = requests.get(json_url, headers=headers, timeout=5)
         if r.status_code == 200:
             data = r.json().get('product', {})
             title = data.get('title', title)
-
             raw_html = data.get('body_html', "")
             soup = BeautifulSoup(raw_html, 'html.parser')
             raw_text = soup.get_text(separator="\n", strip=True)
 
-            # Clean text (Remove Shipping/Size noise)
             clean_lines = []
             for line in raw_text.split('\n'):
                 upper = line.upper()
-                if any(x in upper for x in
-                       ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING", "RETURN"]):
+                if any(x in upper for x in ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING"]):
                     continue
-                if len(line) > 5:
-                    clean_lines.append(line)
+                if len(line) > 5: clean_lines.append(line)
             desc_text = "\n".join(clean_lines)
     except:
         pass
 
-        # 2. HTML Fallback
+    # 2. HTML Fallback
     if not desc_text:
         try:
             r = requests.get(target_url, headers=headers, timeout=10)
             soup = BeautifulSoup(r.content, 'html.parser')
             title = soup.find('h1').text.strip() if soup.find('h1') else title
-
             main_block = soup.find('div', class_='product__description')
             if not main_block: main_block = soup.find('div', class_='rte')
-
             if main_block:
                 desc_text = main_block.get_text(separator="\n", strip=True)
-                lines = desc_text.split('\n')
-                clean_lines = []
-                for line in lines:
-                    upper = line.upper()
-                    if "DELIVERY" not in upper and "SHIPPING" not in upper and "UK " not in upper:
-                        clean_lines.append(line)
+                clean_lines = [l for l in desc_text.split('\n') if "SHIPPING" not in l.upper() and len(l) > 5]
                 desc_text = "\n".join(clean_lines[:25])
         except Exception as e:
             return None, f"Scrape Error: {str(e)}"
@@ -171,6 +160,7 @@ def generate_campaign(product_name, description, key):
     genai.configure(api_key=key)
     model = genai.GenerativeModel('gemini-flash-latest')
 
+    # FULL 20 PERSONA MATRIX
     persona_matrix = """
     1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
     2. The VI High-Court Lawyer (Tone: British Vogue Sophistication | Pain: 'Next Week Friday' Lies)
@@ -203,7 +193,13 @@ def generate_campaign(product_name, description, key):
 
     CRITICAL RULE: You MUST quote specific fabric/cut/fit details from the Specs (e.g., 'crepe', 'peplum', 'fitted') in every caption. Do not be generic.
 
-    Output JSON ONLY: [ {{"persona": "Name", "post": "Caption"}}, ... ]
+    Output JSON ONLY. Format: 
+    [ 
+      {{"persona": "Name", "post": "Caption..."}},
+      {{"persona": "Name", "post": "Caption..."}},
+      {{"persona": "Name", "post": "Caption..."}},
+      {{"persona": "Hybrid Strategy", "post": "Caption..."}}
+    ]
     """
 
     try:
@@ -227,6 +223,7 @@ def save_to_notion(p_name, post, persona, token, db_id):
         }
     }
     try:
+        # FIXED URL: No markdown brackets
         response = requests.post("[https://api.notion.com/v1/pages](https://api.notion.com/v1/pages)", headers=headers,
                                  data=json.dumps(data))
         if response.status_code != 200: return False, response.text
@@ -245,7 +242,7 @@ if st.button("GENERATE ASSETS"):
     elif not url_input:
         st.error("Paste a URL first.")
     else:
-        with st.spinner("Scanning Fabric & Context..."):
+        with st.spinner("Analyzing Construction..."):
             p_name, p_desc = scrape_website(url_input)
             st.session_state.p_name = p_name
             st.session_state.p_desc = p_desc
@@ -255,15 +252,12 @@ if st.session_state.results:
     st.divider()
     st.subheader(st.session_state.p_name.upper())
 
-    # --- NO IMAGES, NO RAW TEXT HUD. CLEAN UI ONLY. ---
-
     if st.button("💾 EXPORT CAMPAIGN TO NOTION", type="primary"):
         success_count = 0
         progress_bar = st.progress(0)
         for i, item in enumerate(st.session_state.results):
             p_val = item.get('persona', item.get('Persona', ''))
             post_val = item.get('post', item.get('Post', ''))
-
             if p_val and post_val:
                 s, m = save_to_notion(st.session_state.p_name, post_val, p_val, notion_token, notion_db_id)
                 if s: success_count += 1
@@ -281,7 +275,6 @@ if st.session_state.results:
         if p_val and post_val:
             st.markdown(f"### {p_val}")
             edited = st.text_area("Caption", value=post_val, height=140, key=f"edit_{i}")
-
             if st.button(f"Export Only This", key=f"save_{i}"):
                 s, m = save_to_notion(st.session_state.p_name, edited, p_val, notion_token, notion_db_id)
                 if s:
