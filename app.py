@@ -14,14 +14,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-
-# --- GLOBAL CONSTANTS ---
-# We define this here to prevent any URL syntax errors later
 # --- GLOBAL CONSTANTS ---
 # .strip() removes invisible whitespace/newlines that cause "No connection adapter" errors
 NOTION_API_URL = "https://api.notion.com/v1/pages".strip()
-
-
 
 # --- 2. LUXURY CSS ENGINE ---
 st.markdown("""
@@ -100,6 +95,8 @@ st.markdown("""
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "results" not in st.session_state: st.session_state.results = None
 if "p_name" not in st.session_state: st.session_state.p_name = ""
+# THE FIX: Generation ID tracking
+if "gen_id" not in st.session_state: st.session_state.gen_id = 0
 
 api_key = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else None
 notion_token = st.secrets.get("NOTION_TOKEN")
@@ -157,7 +154,7 @@ if not st.session_state.authenticated:
 # --- 5. SIDEBAR SETTINGS ---
 with st.sidebar:
     st.markdown("### COMMAND CENTER")
-    st.caption("Lady Biba / Internal Tool v2.5")
+    st.caption("Lady Biba / Internal Tool v2.6")
     st.markdown("---")
     st.success("🟢 SYSTEM ONLINE")
 
@@ -251,7 +248,7 @@ def generate_campaign(product_name, description, key):
     Role: Head of Brand Narrative for 'Lady Biba'.
     Product: {product_name}
     Specs: {description}
-    TASK: Select TOP 3 Personas. Write 3 Captions + 1 Hybrid Strategy. Each caption should be exactly 80 words.
+    TASK: Select TOP 3 Personas. Write 3 Captions + 1 Hybrid Strategy. Each caption should be exactly 80 words and don't say it is exactly 80 words while generating the caption.
     MASTER LIST: {persona_matrix}
 
     CRITICAL RULE: Quote specific fabric/cut details (e.g., 'crepe', 'peplum', 'fitted') in every caption.
@@ -323,6 +320,9 @@ if st.button("GENERATE ASSETS"):
         st.error("Paste a URL first.")
     else:
         with st.spinner("Analyzing Construction..."):
+            # 1. INCREMENT GEN_ID TO KILL OLD CACHE
+            st.session_state.gen_id += 1
+
             p_name, p_desc = scrape_website(url_input)
 
             # GUARD: STOP IF URL IS WRONG
@@ -343,12 +343,14 @@ if st.session_state.results:
         progress_bar = st.progress(0)
         status_text = st.empty()
 
+        # Grab current Generation ID to find the right widgets
+        current_gen = st.session_state.gen_id
+
         for i, item in enumerate(st.session_state.results):
             p_val = item.get('persona', item.get('Persona', ''))
 
-            # LOGIC: Check if you edited the text box (editor_i).
-            # If yes, use that. If no, use the original AI text.
-            widget_key = f"editor_{i}"
+            # LOGIC: Check if you edited the text box (editor_i_gen_id).
+            widget_key = f"editor_{i}_{current_gen}"
             original_post = item.get('post', item.get('Post', ''))
             final_post = st.session_state.get(widget_key, original_post)
 
@@ -375,6 +377,9 @@ if st.session_state.results:
     # --- 2. EDITABLE DASHBOARD ---
     st.markdown("---")
 
+    # Grab current Generation ID for widget keys
+    current_gen = st.session_state.gen_id
+
     for i, item in enumerate(st.session_state.results):
         persona = item.get('persona', item.get('Persona', 'Unknown'))
         original_post = item.get('post', item.get('Post', ''))
@@ -385,13 +390,12 @@ if st.session_state.results:
 
             with col1:
                 st.subheader(persona)
-                # THIS CREATES THE GREY EDITABLE BOX
-                # 'edited_text' captures whatever you type here.
+                # THE FIX: Key now includes 'current_gen' so it refreshes every time
                 edited_text = st.text_area(
                     label=f"Edit Copy for {persona}",
                     value=original_post,
                     height=250,
-                    key=f"editor_{i}",
+                    key=f"editor_{i}_{current_gen}",
                     label_visibility="collapsed"
                 )
 
@@ -401,7 +405,7 @@ if st.session_state.results:
 
                 # INDIVIDUAL SAVE BUTTON
                 # It sends 'edited_text' (your changes) to Notion
-                if st.button("💾 SAVE THIS ONE", key=f"btn_{i}"):
+                if st.button("💾 SAVE THIS ONE", key=f"btn_{i}_{current_gen}"):
                     with st.spinner("Saving..."):
                         s, m = save_to_notion(st.session_state.p_name, edited_text, persona, notion_token, notion_db_id)
                         if s:
