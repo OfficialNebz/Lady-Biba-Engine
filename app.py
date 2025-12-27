@@ -15,23 +15,33 @@ st.set_page_config(
 )
 
 # --- GLOBAL CONSTANTS ---
-# .strip() removes invisible whitespace/newlines that cause "No connection adapter" errors
 NOTION_API_URL = "https://api.notion.com/v1/pages".strip()
 
-# --- 2. LUXURY CSS ENGINE ---
+# --- 2. LUXURY CSS ENGINE (FIXED) ---
 st.markdown("""
     <style>
     /* IMPORT FONTS */
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@200;300;400;600&display=swap');
 
-    /* GLOBAL RESET */
-    * { font-family: 'Montserrat', sans-serif !important; }
-    h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif !important; letter-spacing: 1px; color: #F0F0F0; }
+    /* GLOBAL RESET - SAFE VERSION */
+    .stApp {
+        background-color: #050505;
+        font-family: 'Montserrat', sans-serif !important;
+    }
 
-    /* APP BACKGROUND */
-    .stApp { background-color: #050505; }
+    /* Apply fonts to text only, protecting icons */
+    h1, h2, h3, h4, h5, h6, p, div, span, button, input, label, textarea {
+        font-family: 'Montserrat', sans-serif;
+    }
 
-    /* AUTH SCREEN CARD (Glassmorphism) */
+    /* HEADINGS */
+    h1, h2, h3, h4 { 
+        font-family: 'Cormorant Garamond', serif !important; 
+        letter-spacing: 1px; 
+        color: #F0F0F0; 
+    }
+
+    /* AUTH SCREEN CARD */
     .auth-card {
         background: rgba(20, 20, 20, 0.7);
         backdrop-filter: blur(20px);
@@ -43,7 +53,7 @@ st.markdown("""
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
-    /* BUTTONS: TACTILE & ANIMATED */
+    /* BUTTONS */
     div.stButton > button {
         width: 100%;
         background-color: transparent;
@@ -65,17 +75,21 @@ st.markdown("""
         box-shadow: 0 10px 20px rgba(212, 175, 55, 0.2);
     }
 
-    div.stButton > button:active {
-        transform: scale(0.98);
-    }
+    div.stButton > button:active { transform: scale(0.98); }
 
     /* INPUT FIELDS */
-    div[data-baseweb="input"] > div {
+    div[data-baseweb="input"] > div, textarea {
         background-color: #0a0a0a !important;
         border: 1px solid #333 !important;
         color: #D4AF37 !important;
-        text-align: center;
         border-radius: 0px;
+    }
+
+    /* EXPANDER STYLING */
+    .streamlit-expanderHeader {
+        background-color: #111 !important;
+        color: #D4AF37 !important;
+        border: 1px solid #333;
     }
 
     /* SIDEBAR */
@@ -84,7 +98,7 @@ st.markdown("""
         border-right: 1px solid #222;
     }
 
-    /* HIDE DEFAULT STREAMLIT JUNK */
+    /* HIDE JUNK */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -95,7 +109,6 @@ st.markdown("""
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "results" not in st.session_state: st.session_state.results = None
 if "p_name" not in st.session_state: st.session_state.p_name = ""
-# THE FIX: Generation ID tracking
 if "gen_id" not in st.session_state: st.session_state.gen_id = 0
 
 api_key = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else None
@@ -103,9 +116,8 @@ notion_token = st.secrets.get("NOTION_TOKEN")
 notion_db_id = st.secrets.get("NOTION_DB_ID")
 
 
-# --- 4. THE GATEKEEPER (AUTH LOGIC) ---
+# --- 4. AUTH LOGIC ---
 def login_screen():
-    # BACKGROUND IMAGE ONLY FOR LOGIN
     st.markdown("""
         <style>
         .stApp {
@@ -123,7 +135,6 @@ def login_screen():
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
-        # We simulate a "card" by styling the container
         with st.container():
             st.markdown('<div class="auth-card">', unsafe_allow_html=True)
             st.markdown("<h1 style='text-align: center; margin:0;'>LADY BIBA</h1>", unsafe_allow_html=True)
@@ -139,7 +150,6 @@ def login_screen():
                     st.rerun()
                 else:
                     st.error("⚠️ ACCESS DENIED")
-
             st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -148,22 +158,20 @@ if not st.session_state.authenticated:
     st.stop()
 
 # =========================================================
-# 🏛️ THE MAIN SYSTEM (ONLY RUNS AFTER AUTH)
+# 🏛️ THE MAIN SYSTEM
 # =========================================================
 
-# --- 5. SIDEBAR SETTINGS ---
 with st.sidebar:
     st.markdown("### COMMAND CENTER")
-    st.caption("Lady Biba / Internal Tool v2.6")
+    st.caption("Lady Biba / Internal Tool v2.7 (Stable)")
     st.markdown("---")
     st.success("🟢 SYSTEM ONLINE")
-
     if st.button("🔄 FORCE RESET"):
         st.session_state.clear()
         st.rerun()
 
 
-# --- 6. ENGINE FUNCTIONS ---
+# --- 5. ROBUST ENGINE FUNCTIONS ---
 
 def scrape_website(target_url):
     # GUARD: Strict URL Validation
@@ -178,7 +186,7 @@ def scrape_website(target_url):
     title = "Lady Biba Piece"
     desc_text = ""
 
-    # --- TIER 1: SHOPIFY JSON API (The Golden Key) ---
+    # --- TIER 1: SHOPIFY JSON API ---
     try:
         json_url = f"{clean_url}.json"
         r = requests.get(json_url, headers=headers, timeout=5)
@@ -186,46 +194,30 @@ def scrape_website(target_url):
             data = r.json().get('product', {})
             title = data.get('title', title)
             raw_html = data.get('body_html', "")
-
-            # Fast clean of the HTML from JSON
             soup = BeautifulSoup(raw_html, 'html.parser')
             desc_text = soup.get_text(separator="\n", strip=True)
             if desc_text: return title, _clean_text(desc_text)
-    except Exception:
-        pass  # Silently fail to Tier 2
+    except:
+        pass
 
-    # --- TIER 2 & 3: PAGE META DATA (The SEO Safety Net) ---
+    # --- TIER 2 & 3: SEO & HTML ---
     try:
         r = requests.get(target_url, headers=headers, timeout=10)
         if r.status_code != 200: return None, f"❌ SITE ERROR: {r.status_code}"
 
         soup = BeautifulSoup(r.content, 'html.parser')
-
-        # Grab Title
         if soup.find('h1'): title = soup.find('h1').text.strip()
 
-        # Strategy A: Meta Description (Highest Reliability)
+        # Meta Description
         meta_desc = soup.find('meta', property='og:description') or soup.find('meta', attrs={'name': 'description'})
         if meta_desc:
             content = meta_desc.get('content', '').strip()
-            if len(content) > 20:
-                return title, content
+            if len(content) > 20: return title, content
 
-        # Strategy B: Schema.org JSON-LD (Structured Data)
-        for script in soup.find_all('script', type='application/ld+json'):
-            try:
-                data = json.loads(script.string)
-                if '@type' in data and 'Product' in data['@type']:
-                    if 'description' in data:
-                        return title, _clean_text(data['description'])
-            except:
-                continue
-
-        # Strategy C: Visual Fallback (The "Brute Force" Method)
+        # HTML Fallback
         main_block = soup.find('div', class_='product__description') or \
                      soup.find('div', class_='rte') or \
                      soup.find('div', id='description')
-
         if main_block:
             desc_text = main_block.get_text(separator="\n", strip=True)
             return title, _clean_text(desc_text)
@@ -237,62 +229,51 @@ def scrape_website(target_url):
 
 
 def _clean_text(raw_text):
-    """Helper to remove shipping info and clutter"""
     clean_lines = []
     for line in raw_text.split('\n'):
         upper = line.upper()
-        # Filter out common e-commerce noise
         if any(x in upper for x in
                ["UK ", "US ", "BUST", "WAIST", "HIP", "XS", "XL", "DELIVERY", "SHIPPING", "RETURNS"]):
             continue
         if len(line) > 5: clean_lines.append(line)
-    return "\n".join(clean_lines[:30])  # Return top 30 lines only
+    return "\n".join(clean_lines[:30])
 
 
 def generate_campaign(product_name, description, key):
     genai.configure(api_key=key)
     model = genai.GenerativeModel('gemini-flash-latest')
 
-    # FULL LADY BIBA MATRIX
     persona_matrix = """
-    1. The Tech-Bro VC (Tone: Lethal Precision | Pain: 'Tailor Story' Trauma)
-    2. The VI High-Court Lawyer (Tone: British Vogue Sophistication | Pain: 'Next Week Friday' Lies)
-    3. The Diaspora Investor (Tone: 'Old Money' Security | Pain: Invisible in Grey Suits)
-    4. The Eco-Conscious Gen Z (Tone: Aggressive Hype | Pain: Decision Fatigue)
-    5. The Oil & Gas Director (Tone: Understated Luxury | Pain: Time-Wealth Depletion)
-    6. The Balogun Market 'Oga' (Tone: Lagos 'No-Nonsense' | Pain: Fabric Fading Shame)
-    7. The Wedding Guest Pro (Tone: Kinetic Energy | Pain: Heat/Humidity Armor)
-    8. The Fintech Founder (Tone: Afro-Futuristic | Pain: Poor Finishing Scars)
-    9. The High-Society Matriarch (Tone: Maternal Authority | Pain: Economic Friction)
-    10. The Creative Director (Tone: Intellectual Dominance | Pain: 'Fast-Fashion' Fragility)
-    11. The Side-Hustle Queen (Tone: Relatable Hustle | Pain: Office TGIF-to-Party Crisis)
-    12. The Real Estate Mogul (Tone: Unapologetic Power | Pain: Imposter Syndrome)
-    13. The Corporate Librarian (Tone: Quiet Confidence | Pain: The 9AM Boardroom Fear)
-    14. The Instagram Influencer (Tone: Viral/Trend-Focused | Pain: 'Sold Out' Anxiety)
-    15. The Medical Consultant (Tone: Clinical/Structured | Pain: 24-Hour Style Durability)
-    16. The Church 'Sister' Elite (Tone: Pious/Premium | Pain: Modesty vs Style Battle)
-    17. The Media Personality (Tone: Electric/Charismatic | Pain: Narrative Inconsistency)
-    18. The Event Planner (Tone: Chaos-Control | Pain: Opportunity Cost of Waiting)
-    19. The UN/NGO Official (Tone: Diplomatic/Polished | Pain: Cultural Identity Gap)
-    20. The Retail Investor (Tone: Analytical/Speculative | Pain: ROI on Self-Presentation)
+    1. The Tech-Bro VC (Tone: Lethal Precision)
+    2. The VI High-Court Lawyer (Tone: British Vogue Sophistication)
+    3. The Diaspora Investor (Tone: 'Old Money' Security)
+    4. The Eco-Conscious Gen Z (Tone: Aggressive Hype)
+    5. The Oil & Gas Director (Tone: Understated Luxury)
+    6. The Balogun Market 'Oga' (Tone: Lagos 'No-Nonsense')
+    7. The Wedding Guest Pro (Tone: Kinetic Energy)
+    8. The Fintech Founder (Tone: Afro-Futuristic)
+    9. The High-Society Matriarch (Tone: Maternal Authority)
+    10. The Creative Director (Tone: Intellectual Dominance)
+    11. The Side-Hustle Queen (Tone: Relatable Hustle)
+    12. The Real Estate Mogul (Tone: Unapologetic Power)
+    13. The Corporate Librarian (Tone: Quiet Confidence)
+    14. The Instagram Influencer (Tone: Viral/Trend-Focused)
+    15. The Medical Consultant (Tone: Clinical/Structured)
+    16. The Church 'Sister' Elite (Tone: Pious/Premium)
+    17. The Media Personality (Tone: Electric/Charismatic)
+    18. The Event Planner (Tone: Chaos-Control)
+    19. The UN/NGO Official (Tone: Diplomatic/Polished)
+    20. The Retail Investor (Tone: Analytical/Speculative)
     """
 
     prompt = f"""
     Role: Head of Brand Narrative for 'Lady Biba'.
     Product: {product_name}
     Specs: {description}
-    TASK: Select TOP 3 Personas. Write 3 Captions + 1 Hybrid Strategy. Each caption should be exactly 80 words and don't say it is exactly 80 words while generating the caption.
+    TASK: Select TOP 3 Personas. Write 3 Captions + 1 Hybrid Strategy. Each caption should be exactly 80 words.
     MASTER LIST: {persona_matrix}
-
-    CRITICAL RULE: Quote specific fabric/cut details (e.g., 'crepe', 'peplum', 'fitted') in every caption.
-
-    Output JSON ONLY. Use this EXACT structure: 
-    [ 
-      {{"persona": "Name", "post": "Caption..."}},
-      {{"persona": "Name", "post": "Caption..."}},
-      {{"persona": "Name", "post": "Caption..."}},
-      {{"persona": "Hybrid Strategy", "post": "Caption..."}}
-    ]
+    CRITICAL RULE: Quote specific fabric/cut details in every caption.
+    Output JSON ONLY: [ {{"persona": "Name", "post": "Caption..."}}, ... ]
     """
 
     try:
@@ -308,13 +289,11 @@ def save_to_notion(p_name, post, persona, token, db_id):
     if not token or not db_id: return False, "Notion Secrets Missing"
 
     url = NOTION_API_URL.strip()
-
     headers = {
         "Authorization": "Bearer " + token.strip(),
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
     }
-
     data = {
         "parent": {"database_id": db_id.strip()},
         "properties": {
@@ -325,108 +304,96 @@ def save_to_notion(p_name, post, persona, token, db_id):
     }
 
     try:
-        # TIMEOUT: We give Notion 15 seconds. If it sleeps, we kill it.
         response = requests.post(url, headers=headers, data=json.dumps(data), timeout=15)
-
         if response.status_code == 200:
             return True, "Success"
         elif response.status_code == 401:
-            return False, "❌ INVALID NOTION TOKEN. Check secrets.toml."
+            return False, "❌ INVALID TOKEN"
         elif response.status_code == 404:
-            return False, "❌ DATABASE NOT FOUND. Check your Database ID."
+            return False, "❌ DB NOT FOUND"
         else:
-            return False, f"Notion Error {response.status_code}: {response.text}"
-
+            return False, f"Notion Error {response.status_code}"
     except requests.exceptions.Timeout:
-        return False, "⏳ TIMEOUT: Notion is taking too long to respond. Try again in 5 seconds."
+        return False, "⏳ TIMEOUT: Notion slow."
     except requests.exceptions.ConnectionError:
-        return False, "🔌 CONNECTION ERROR: Check your internet connection."
-    except requests.exceptions.MissingSchema:
-        return False, f"❌ URL ERROR: The URL '{url}' is invalid."
+        return False, "🔌 NO INTERNET"
     except Exception as e:
         return False, f"System Error: {str(e)}"
 
 
-# --- 7. UI LAYOUT ---
+# --- 6. UI LAYOUT ---
 st.title("LADY BIBA / INTELLIGENCE")
 
-# [INSERT THIS BLOCK HERE]
 with st.expander("📖 SYSTEM MANUAL (CLICK TO OPEN)"):
     st.markdown("### OPERATIONAL GUIDE")
+    st.markdown("---")
 
     # STEP 1
-    c1, c2 = st.columns([1, 1.5])
+    c1, c2 = st.columns([0.8, 2])
     with c1:
-        st.markdown("""
-        **STEP 1: SOURCE SELECTION**
-        GO TO THE LADY BIBA WEBSITE AND OPEN A PRODUCT PAGE OF YOUR CHOICE.
-
-        *Criteria:* The URL must follow this structure: 
-        `https://ladybiba.com/products/product-name`
-        """)
+        st.markdown("**STEP 1: SOURCE**")
+        st.caption("Locate the target.")
+        st.markdown("Go to the Lady Biba site. Open a single product page.\n*URL Structure:* `.../products/name`")
     with c2:
-        # ENSURE 'Screenshot (449).png' IS IN YOUR APP FOLDER
-        st.image("Screenshot (449).png", caption="Valid Product Page Example", use_container_width=True)
+        st.image("Screenshot (449).png", use_container_width=True)
 
-    st.divider()
+    st.markdown("---")
 
     # STEP 2
-    c3, c4 = st.columns([1, 1.5])
+    c3, c4 = st.columns([0.8, 2])
     with c3:
-        st.markdown("""
-        **STEP 2: ACQUISITION**
-        COPY THE FULL URL FROM THE BROWSER ADDRESS BAR.
-
-        *Note:* Ensure no extra query parameters (junk after the ?) are included if possible, though the system can handle some noise.
-        """)
+        st.markdown("**STEP 2: ACQUIRE**")
+        st.caption("Secure the asset link.")
+        st.markdown("Copy the URL directly from your browser's address bar.")
     with c4:
-        st.image("Screenshot (450).png", caption="Copying the Asset Link", use_container_width=True)
+        st.image("Screenshot (450).png", use_container_width=True)
 
-    st.divider()
+    st.markdown("---")
 
     # STEP 3
-    c5, c6 = st.columns([1, 1.5])
+    c5, c6 = st.columns([0.8, 2])
     with c5:
-        st.markdown("""
-        **STEP 3: INJECTION**
-        RETURN TO THIS INTELLIGENCE TERMINAL. PASTE THE LINK IN THE SEARCH BAR AND PRESS 'GENERATE ASSETS'.
-
-        *Action:* Wait for the system to scrape and analyze the construction.
-        """)
+        st.markdown("**STEP 3: INJECT**")
+        st.caption("Run the intelligence.")
+        st.markdown("Paste into the terminal below and execute 'Generate Assets'.")
     with c6:
-        st.image("Screenshot (452).png", caption="System Injection Point", use_container_width=True)
+        st.image("Screenshot (452).png", use_container_width=True)
 
-    st.divider()
+    st.markdown("---")
+    st.info("💡 TIP: You can edit the generated text directly in the dashboard before exporting.")
 
-    # STEP 4 (Fixed your numbering error)
-    st.markdown("""
-    **STEP 4: EXPORT**
-    ONCE THE INTELLIGENCE REPORT IS READY, REVIEW THE TEXT. 
-    YOU CAN EDIT THE COPY DIRECTLY IN THE TERMINAL. 
-    WHEN SATISFIED, CLICK **'EXPORT TO NOTION'** TO SYNC WITH THE DATABASE.
-    """)
-# [END BLOCK]
-
+# INPUT SECTION
 url_input = st.text_input("Product URL", placeholder="Paste Lady Biba URL...")
 
+if st.button("GENERATE ASSETS"):
+    if not api_key:
+        st.error("API Key Missing.")
+    elif not url_input:
+        st.error("Paste a URL first.")
+    else:
+        with st.spinner("Analyzing Construction..."):
+            st.session_state.gen_id += 1
+            p_name, p_desc = scrape_website(url_input)
+            if p_name is None:
+                st.error(p_desc)
+            else:
+                st.session_state.p_name = p_name
+                st.session_state.results = generate_campaign(p_name, p_desc, api_key)
+
+# RESULTS SECTION
 if st.session_state.results:
     st.divider()
     st.subheader(st.session_state.p_name.upper())
 
-    # --- 1. GLOBAL EXPORT BUTTON (Captures Edits) ---
     if st.button("💾 EXPORT ALL ASSETS", type="primary", use_container_width=True):
         success_count = 0
         fail_count = 0
         progress_bar = st.progress(0)
         status_text = st.empty()
-
-        # Grab current Generation ID to find the right widgets
         current_gen = st.session_state.gen_id
 
         for i, item in enumerate(st.session_state.results):
             p_val = item.get('persona', item.get('Persona', ''))
-
-            # LOGIC: Check if you edited the text box (editor_i_gen_id).
             widget_key = f"editor_{i}_{current_gen}"
             original_post = item.get('post', item.get('Post', ''))
             final_post = st.session_state.get(widget_key, original_post)
@@ -439,22 +406,15 @@ if st.session_state.results:
                 else:
                     fail_count += 1
                     st.error(f"Failed to upload {p_val}: {m}")
-
             progress_bar.progress((i + 1) / len(st.session_state.results))
 
         status_text.empty()
-
         if success_count > 0:
             st.success(f"SUCCESS: {success_count} Assets Uploaded.")
             time.sleep(2)
             st.rerun()
-        elif fail_count > 0:
-            st.error("❌ ALL UPLOADS FAILED. Check your Notion ID and Token.")
 
-    # --- 2. EDITABLE DASHBOARD ---
     st.markdown("---")
-
-    # Grab current Generation ID for widget keys
     current_gen = st.session_state.gen_id
 
     for i, item in enumerate(st.session_state.results):
@@ -462,12 +422,9 @@ if st.session_state.results:
         original_post = item.get('post', item.get('Post', ''))
 
         with st.container():
-            # 70% Text Area | 30% Save Button
             col1, col2 = st.columns([0.7, 0.3])
-
             with col1:
                 st.subheader(persona)
-                # THE FIX: Key now includes 'current_gen' so it refreshes every time
                 edited_text = st.text_area(
                     label=f"Edit Copy for {persona}",
                     value=original_post,
@@ -475,13 +432,9 @@ if st.session_state.results:
                     key=f"editor_{i}_{current_gen}",
                     label_visibility="collapsed"
                 )
-
             with col2:
-                st.write("##")  # Spacers to align button
                 st.write("##")
-
-                # INDIVIDUAL SAVE BUTTON
-                # It sends 'edited_text' (your changes) to Notion
+                st.write("##")
                 if st.button("💾 SAVE THIS ONE", key=f"btn_{i}_{current_gen}"):
                     with st.spinner("Saving..."):
                         s, m = save_to_notion(st.session_state.p_name, edited_text, persona, notion_token, notion_db_id)
@@ -489,5 +442,4 @@ if st.session_state.results:
                             st.toast(f"✅ Saved: {persona}")
                         else:
                             st.error(f"Failed: {m}")
-
         st.divider()
