@@ -336,8 +336,9 @@ if st.session_state.results:
     st.divider()
     st.subheader(st.session_state.p_name.upper())
 
-    # 1. THE EXPORT BUTTON (Only runs when clicked)
-    if st.button("💾 EXPORT CAMPAIGN TO NOTION", type="primary"):
+    # --- 1. GLOBAL EXPORT BUTTON ---
+    # This button now intelligently looks for your EDITS in the text boxes below.
+    if st.button("💾 EXPORT ALL ASSETS", type="primary", use_container_width=True):
         success_count = 0
         fail_count = 0
         progress_bar = st.progress(0)
@@ -345,11 +346,16 @@ if st.session_state.results:
 
         for i, item in enumerate(st.session_state.results):
             p_val = item.get('persona', item.get('Persona', ''))
-            post_val = item.get('post', item.get('Post', ''))
 
-            if p_val and post_val:
+            # CRITICAL: Grab the EDITED text from the widget state if it exists.
+            # If you haven't edited it, it falls back to the original AI generation.
+            widget_key = f"editor_{i}"
+            original_post = item.get('post', item.get('Post', ''))
+            final_post = st.session_state.get(widget_key, original_post)
+
+            if p_val and final_post:
                 status_text.text(f"Uploading: {p_val}...")
-                s, m = save_to_notion(st.session_state.p_name, post_val, p_val, notion_token, notion_db_id)
+                s, m = save_to_notion(st.session_state.p_name, final_post, p_val, notion_token, notion_db_id)
                 if s:
                     success_count += 1
                 else:
@@ -362,39 +368,45 @@ if st.session_state.results:
 
         if success_count > 0:
             st.success(f"SUCCESS: {success_count} Assets Uploaded.")
-            if fail_count > 0:
-                st.warning(f"⚠️ {fail_count} failed. Check errors above.")
-            time.sleep(2)
+            time.sleep(2)  # Give you a moment to see the victory
             st.rerun()
         elif fail_count > 0:
             st.error("❌ ALL UPLOADS FAILED. Check your Notion ID and Token.")
 
-        # 2. THE DISPLAY & INDIVIDUAL EXPORT LOOP
-        # We use st.columns to put the text and the button side-by-side
-        st.markdown("---")
+    # --- 2. EDITABLE DASHBOARD ---
+    st.markdown("---")
 
-        # We MUST use enumerate(..., start=0) to get a unique index 'i' for every item
-        for i, item in enumerate(st.session_state.results):
-            persona = item.get('persona', item.get('Persona', 'Unknown'))
-            post = item.get('post', item.get('Post', 'No content'))
+    for i, item in enumerate(st.session_state.results):
+        persona = item.get('persona', item.get('Persona', 'Unknown'))
+        original_post = item.get('post', item.get('Post', ''))
 
-            with st.container():
-                # Create a 2-column layout: Text (Left) vs Action (Right)
-                col1, col2 = st.columns([0.85, 0.15])
+        with st.container():
+            # LAYOUT FIX: 70% for Text, 30% for Action Button to prevent "vanishing buttons"
+            col1, col2 = st.columns([0.7, 0.3])
 
-                with col1:
-                    st.subheader(persona)
-                    st.info(post)
+            with col1:
+                st.subheader(persona)
+                # EDITABLE FIELD: The 'key' binds this box to session_state
+                # We use this key above in the "Export All" logic to grab your changes.
+                edited_text = st.text_area(
+                    label=f"Edit Copy for {persona}",
+                    value=original_post,
+                    height=180,
+                    key=f"editor_{i}",
+                    label_visibility="collapsed"
+                )
 
-                with col2:
-                    st.write("##")  # Spacer to push button down to align with text
-                    # UNIQUE KEY IS CRITICAL HERE: key=f"btn_{i}"
-                    if st.button("💾 SAVE", key=f"btn_{i}", help=f"Export only {persona}"):
-                        with st.spinner("Saving..."):
-                            s, m = save_to_notion(st.session_state.p_name, post, persona, notion_token, notion_db_id)
-                            if s:
-                                st.toast(f"✅ Saved: {persona}")  # Non-intrusive success message
-                            else:
-                                st.error(f"Failed: {m}")
+            with col2:
+                st.write("##")  # Spacer to push button down
+                st.write("##")
+                # INDIVIDUAL SAVE BUTTON
+                if st.button("💾 SAVE THIS ONE", key=f"btn_{i}"):
+                    with st.spinner("Saving..."):
+                        # We save 'edited_text', which captures whatever you just typed
+                        s, m = save_to_notion(st.session_state.p_name, edited_text, persona, notion_token, notion_db_id)
+                        if s:
+                            st.toast(f"✅ Saved: {persona}")
+                        else:
+                            st.error(f"Failed: {m}")
 
-            st.markdown("---")  # Visual separator between assets
+        st.divider()
