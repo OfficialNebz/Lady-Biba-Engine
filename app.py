@@ -294,6 +294,27 @@ with st.expander("📖 SYSTEM MANUAL (CLICK TO OPEN)"):
 
 # INPUT FIELD FOLLOWS
 url_input = st.text_input("Product URL", placeholder="Paste Lady Biba URL...")
+# --- MISSING TRIGGER BLOCK ---
+if st.button("GENERATE ASSETS", type="primary"):
+    if not url_input:
+        st.error("⚠️ PLEASE ENTER A PRODUCT URL")
+    else:
+        with st.spinner("ANALYZING LADY BIBA ARCHIVES..."):
+            # 1. Scrape
+            p_name, desc = scrape_website(url_input)
+
+            if p_name:
+                # 2. Generate
+                st.session_state.p_name = p_name
+                # Use the API key we fetched at the top
+                results = generate_campaign(p_name, desc, api_key)
+
+                # 3. Store & Refresh
+                st.session_state.results = results
+                st.session_state.gen_id += 1
+                st.rerun()
+            else:
+                st.error(f"❌ CONNECTION FAILED: {desc}")
 
 if st.session_state.results:
     st.divider()
