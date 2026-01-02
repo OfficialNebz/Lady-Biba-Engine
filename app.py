@@ -4,6 +4,8 @@ import json
 import time
 from bs4 import BeautifulSoup
 import google.generativeai as genai
+from PIL import Image
+from io import BytesIO
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
@@ -82,10 +84,13 @@ NOTION_API_URL = "https://api.notion.com/v1/pages"
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.markdown("### COMMAND CENTER")
-    st.caption("Lady Biba Intelligence v2.0")
+    st.caption("Lady Biba Intelligence v2.3 (Stable Vision)")
+
     if st.button("🔄 RESET SYSTEM"):
+        st.cache_data.clear()  # CLEARS THE CACHE SO YOU CAN RE-RUN IF NEEDED
         st.session_state.clear()
         st.rerun()
+
     st.markdown(
         "<div style='text-align: center; color: #666; font-size: 12px; margin-top: 5px;'><em>Tap to clear cache & start new analysis.</em></div>",
         unsafe_allow_html=True)
@@ -114,68 +119,116 @@ if not st.session_state.authenticated:
     st.stop()
 
 
-# --- 6. INTELLIGENCE ENGINE ---
+# --- 6. INTELLIGENCE ENGINE (VISION + CACHE) ---
 
+@st.cache_data(show_spinner=False)
 def scrape_website(target_url):
+    """
+    Scrapes title, description AND raw JSON data to find images.
+    Cached so it doesn't re-download if you click around.
+    """
     if "ladybiba.com" not in target_url:
-        return None, "❌ ERROR: INVALID DOMAIN. Locked to Lady Biba."
+        return None, "❌ ERROR: INVALID DOMAIN. Locked to Lady Biba.", None
 
     headers = {'User-Agent': 'Mozilla/5.0'}
     clean_url = target_url.split('?')[0]
     json_url = f"{clean_url}.json"
     title = "Lady Biba Piece"
     desc_text = ""
+    raw_json = None
 
-    # Tier 1: JSON
+    # Tier 1: JSON (The Gold Mine)
     try:
-        # TIMEOUT INCREASED TO 5S - DO NOT CHANGE THIS BACK TO 1
         r = requests.get(json_url, headers=headers, timeout=5)
         if r.status_code == 200:
-            data = r.json().get('product', {})
-            title = data.get('title', title)
-            raw_html = data.get('body_html', "")
+            raw_json = r.json().get('product', {})
+            title = raw_json.get('title', title)
+            raw_html = raw_json.get('body_html', "")
             soup = BeautifulSoup(raw_html, 'html.parser')
             desc_text = soup.get_text(separator="\n", strip=True)
     except:
         pass
 
-    # Tier 2: HTML
+    # Tier 2: HTML Fallback
     if not desc_text:
         try:
-            # TIMEOUT INCREASED TO 5S - DO NOT CHANGE THIS BACK TO 1
             r = requests.get(target_url, headers=headers, timeout=5)
             soup = BeautifulSoup(r.content, 'html.parser')
             if soup.find('h1'): title = soup.find('h1').text.strip()
             main_block = soup.find('div', class_='product__description') or soup.find('div', class_='rte')
             if main_block: desc_text = main_block.get_text(separator="\n", strip=True)
         except Exception as e:
-            return None, f"Scrape Error: {str(e)}"
+            return None, f"Scrape Error: {str(e)}", None
 
-    if not desc_text: return title, "[NO TEXT FOUND]"
+    if not desc_text: return title, "[NO TEXT FOUND]", None
 
     clean_lines = []
     for line in desc_text.split('\n'):
         upper = line.upper()
         if any(x in upper for x in ["SHIPPING", "DELIVERY", "RETURNS", "SIZE", "WHATSAPP"]): continue
         if len(line) > 5: clean_lines.append(line)
-    return title, "\n".join(clean_lines[:25])
+
+    return title, "\n".join(clean_lines[:25]), raw_json
 
 
-def generate_campaign(product_name, description, key):
+@st.cache_data(show_spinner=False)
+def get_optimized_images(product_json):
+    """
+    Downloads up to 3 images, resized to 800px width for speed.
+    Cached so we don't spam download requests.
+    """
+    if not product_json: return []
+
+    images = []
+    # Shopify stores images in a list under 'images'
+    raw_images = product_json.get('images', [])[:3]  # Limit to top 3
+
+    for img in raw_images:
+        src = img.get('src', '')
+        if src:
+            # OPTIMIZATION: Request the 800px wide version from Shopify
+            if ".jpg" in src:
+                optimized_src = src.replace(".jpg", "_800x.jpg")
+            elif ".png" in src:
+                optimized_src = src.replace(".png", "_800x.png")
+            else:
+                optimized_src = src
+
+            try:
+                # 3s timeout per image to keep it snappy
+                response = requests.get(optimized_src, timeout=3)
+                if response.status_code == 200:
+                    img_bytes = BytesIO(response.content)
+                    images.append(Image.open(img_bytes))
+            except:
+                continue
+
+    return images
+
+
+@st.cache_data(show_spinner=False)
+def generate_campaign(product_name, description, _images, key):
+    """
+    The Brain. Uses cache so 1 input = 1 API call max.
+    Note: _images starts with underscore to tell Streamlit not to hash the image bytes directly (speed opt).
+    """
     genai.configure(api_key=key)
-    # RESTORED TO YOUR PREFERRED MODEL
-    model = genai.GenerativeModel('gemini-flash-latest')
+    # UPDATED TO STABLE MODEL - Confirmed by your diagnostics
+    model = genai.GenerativeModel('models/gemini-flash-latest')
 
-    prompt = f"""
+    prompt_text = f"""
     Role: Head of Brand Narrative for 'Lady Biba'.
     Brand Voice: "The Woman Who Works." Power dressing. Structural feminism. Ambition.
     Product: {product_name}
     Specs: {description}
 
     TASK:
-    1. Select TOP 3 Personas.
-    2. Write 3 Captions.
-    3. Write 1 "Hybrid Power Caption".
+    1. VISUAL ANALYSIS: Look at the provided images. Identify the cut, fabric texture, fit, and color nuances.
+    2. INTEGRATION: Combine the visual details (what you see) with the specs (what you read).
+    3. OUTPUT:
+       - Select TOP 3 Personas.
+       - Write 3 Captions.
+       - Write 1 "Hybrid Power Caption".
 
     PERSONAS: VI Lawyer, Fintech Founder, Oil Exec, Media Mogul, Diaspora Returnee.
 
@@ -186,8 +239,13 @@ def generate_campaign(product_name, description, key):
         {{"persona": "Lady Biba Power Hybrid", "post": "The unified caption text..."}}
     ]
     """
+
+    content_payload = [prompt_text]
+    if _images:
+        content_payload.extend(_images)
+
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(content_payload)
         txt = response.text
         if "```json" in txt: txt = txt.split("```json")[1].split("```")[0]
         return json.loads(txt.strip())
@@ -232,14 +290,18 @@ st.markdown("---")
 with st.expander("📖 SYSTEM MANUAL (CLICK TO OPEN)"):
     st.markdown("### OPERATIONAL GUIDE")
     st.markdown("---")
+
+    # RESTORED MANUAL WITH IMAGE PLACEHOLDERS
     c1, c2 = st.columns([1, 1.5])
     with c1:
         st.markdown("**STEP 1: SOURCE**\n\nGo to Lady Biba site. Open product page.")
     with c2:
+        # If you have the image file locally, ensure it is in the same folder
+        # or remove this try/except block if you just want text.
         try:
             st.image("Screenshot (449).png", use_container_width=True)
         except:
-            st.warning("Image missing")
+            st.info("[Image Placeholder: Lady Biba Product Page]")
 
     st.markdown("---")
     c3, c4 = st.columns([1, 1.5])
@@ -249,7 +311,7 @@ with st.expander("📖 SYSTEM MANUAL (CLICK TO OPEN)"):
         try:
             st.image("Screenshot (452).png", use_container_width=True)
         except:
-            pass
+            st.info("[Image Placeholder: URL Input Field]")
 
 url_input = st.text_input("Product URL", placeholder="Paste Lady Biba URL...")
 
@@ -257,12 +319,23 @@ if st.button("GENERATE ASSETS", type="primary"):
     if not url_input:
         st.error("⚠️ PLEASE ENTER A PRODUCT URL")
     else:
-        with st.spinner("ANALYZING LADY BIBA ARCHIVES..."):
-            p_name, desc = scrape_website(url_input)
+        with st.spinner("CONNECTING TO VISUAL CORTEX..."):
+            # 1. Scrape Data + Raw JSON
+            p_name, desc, raw_json = scrape_website(url_input)
 
             if p_name:
                 st.session_state.p_name = p_name
-                results = generate_campaign(p_name, desc, api_key)
+
+                # 2. Extract Optimized Images (Cached)
+                images_list = []
+                if raw_json:
+                    st.toast("📸 Scanning Product Visuals...")
+                    images_list = get_optimized_images(raw_json)
+
+                # 3. Generate Campaign (Cached)
+                # We pass images_list to the AI.
+                results = generate_campaign(p_name, desc, images_list, api_key)
+
                 st.session_state.results = results
                 st.session_state.gen_id += 1
                 st.rerun()
@@ -273,7 +346,7 @@ if st.session_state.results:
     st.divider()
     st.subheader(st.session_state.p_name.upper())
 
-    # BULK EXPORT (FIXED LOGIC)
+    # BULK EXPORT
     if st.button("💾 EXPORT CAMPAIGN TO NOTION", type="primary", use_container_width=True):
         if not notion_token:
             st.error("Notion Config Missing")
@@ -311,7 +384,7 @@ if st.session_state.results:
                 edited = st.text_area(label=persona, value=post, height=200, key=f"editor_{i}_{current_gen}",
                                       label_visibility="collapsed")
             with c2:
-                st.write("##");
+                st.write("##")
                 st.write("##")
                 if st.button("SAVE", key=f"btn_{i}_{current_gen}"):
                     with st.spinner("Syncing to Notion..."):
